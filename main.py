@@ -1,16 +1,23 @@
 from telegram.ext import ApplicationBuilder, CommandHandler
 import config
 from storage.database import init_db
-from bot.handlers import start, track, list_tracked, untrack_product, check_prices_job
+from bot.handlers import start, track, list_tracked, untrack_product, check_prices_job, get_product_history
+from bot.language import translate
 from telegram import BotCommand
 
 
+def build_commands(lang):
+    return [
+        BotCommand("track", translate("cmd_track", lang)),
+        BotCommand("list", translate("cmd_list", lang)),
+        BotCommand("untrack", translate("cmd_untrack", lang)),
+        BotCommand("show_history", translate("cmd_history", lang)),
+    ]
+
+
 async def post_init(app):
-    await app.bot.set_my_commands([
-        BotCommand("track", "Aggiungi un prodotto da monitorare"),
-        BotCommand("list", "Mostra i prodotti che segui"),
-        BotCommand("untrack", "Smetti di seguire un prodotto"),
-    ])
+    await app.bot.set_my_commands(build_commands("en"))                     # default per tutti
+    await app.bot.set_my_commands(build_commands("it"), language_code="it")
 
 
 def main():
@@ -20,6 +27,7 @@ def main():
     app.add_handler(CommandHandler("track", track))
     app.add_handler(CommandHandler("list", list_tracked))
     app.add_handler(CommandHandler("untrack", untrack_product))
+    app.add_handler(CommandHandler("show_history", get_product_history))
 
     app.job_queue.run_repeating(
         check_prices_job,

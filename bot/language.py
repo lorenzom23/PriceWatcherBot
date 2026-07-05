@@ -9,7 +9,8 @@ MESSAGES = {
             "📄 Comandi disponibili:\n"
             "/track <url> — aggiunge un prodotto alla watch list\n"
             "/list — mostra i prodotti che segui\n"
-            "/untrack <id> — smette di seguire un prodotto"
+            "/untrack <id> — smette di seguire un prodotto\n"
+            "/show_history <id> — mostra lo storico prezzi di un prodotto"
         ),
         "track_usage": "Uso: /track <link Amazon>",
         "track_unsupported": "Per ora seguo solo link Amazon. 🙈",
@@ -17,13 +18,22 @@ MESSAGES = {
         "track_ok_target": "✅ Ora seguo «{name}» a {price}€. Ti avviso quando scende sotto {target}€!",
         "track_error": "😕 Non riesco a leggere il prezzo da questo link",
         "track_bad_target": "La soglia dev'essere un numero. Esempio: /track <link> 130",
-        "display_tracked": "Ecco la lista dei prodotti seguiti:\n{products}",
+        "display_tracked": "Ecco la lista dei prodotti seguiti:\n{items}",
         "empty_list": "Non sono presenti prodotti seguiti!",
-        "missing_id_untrack": "Inserire l'id del prodotto da rimuovere dalla watch list",
+        "missing_id": "Inserire l'id del prodotto!",
         "missing_product_untrack": "Il prodotto {id} non è seguito!",
-        "id_untrack_error": "Errore! L'id non è valido!",
+        "id_error": "Errore! L'id non è valido!",
         "untrack_ok": "✅ Il prodotto {id} è stato rimosso dalla watch list!",
         "price_drop": "📉 Il prezzo di «{name}» è sceso da {old}€ a {new}€!",
+        "missing_values": "Non sono presenti valori per il prodotto {id}",
+        "display_history": (
+            "Prezzi registrati per il prodotto {id}: \n{items}\n"
+            "Media: {mean} €"
+        ),
+        "cmd_track": "Aggiungi un prodotto da monitorare",
+        "cmd_list": "Mostra i prodotti che segui",
+        "cmd_untrack": "Smetti di seguire un prodotto",
+        "cmd_history": "Ottieni lo storico di un prodotto",
     },
     "en": {
         "welcome": (
@@ -33,7 +43,8 @@ MESSAGES = {
             "📄 Available commands:\n"
             "/track <url> — add a product to your watch list\n"
             "/list — show the products you follow\n"
-            "/untrack <id> — stop following a product"
+            "/untrack <id> — stop following a product\n"
+            "/show_history <id> — show a product's price history"
         ),
         "track_usage": "Usage: /track <Amazon link>",
         "track_unsupported": "For now I only track Amazon links. 🙈",
@@ -41,13 +52,22 @@ MESSAGES = {
         "track_ok_target": "✅ Now tracking «{name}» at {price}€. I'll alert you when it drops below {target}€!",
         "track_error": "😕 I couldn't read the price from this link",
         "track_bad_target": "The threshold must be a number. Example: /track <link> 130",
-        "display_tracked": "Here are the products you follow:\n{products}",
+        "display_tracked": "Here are the products you follow:\n{items}",
         "empty_list": "You are not following any product yet!",
-        "missing_id_untrack": "Insert the id of the product to remove from the watch list",
+        "missing_id": "Insert the id of the product!",
         "missing_product_untrack": "The product {id} is not tracked!",
-        "id_untrack_error": "Error! The id is not valid!",
+        "id_error": "Error! The id is not valid!",
         "untrack_ok": "✅ The product {id} has been removed from the watch list!",
         "price_drop": "📉 The price of «{name}» dropped from {old}€ to {new}€!",
+        "missing_values": "No records are available for product {id}",
+        "display_history": (
+            "Recorded prices for the product {id}: \n{items}\n"
+            "Mean: {mean} €"
+        ),
+        "cmd_track": "Add a product to monitor",
+        "cmd_list": "Show the products you follow",
+        "cmd_untrack": "Stop following a product",
+        "cmd_history": "Get a product's price history",
     },
 }
 

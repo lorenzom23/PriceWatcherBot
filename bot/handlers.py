@@ -6,7 +6,7 @@ from core.checker import check_all
 from scrapers.registry import get_scraper
 from storage.repository import (
     add_product, add_price, add_subscription, get_subscriptions,
-    remove_subscription, save_user, get_user_language,
+    remove_subscription, save_user, get_user_language, get_history
 )
 
 
@@ -74,7 +74,7 @@ async def list_tracked(update, context):
 
     text = "\n".join(f"[{p_id}] {p_name}" for p_id, p_name in res)
 
-    await update.message.reply_text(translate("display_tracked", lang, products=text))
+    await update.message.reply_text(translate("display_tracked", lang, items=text))
 
 
 async def untrack_product(update, context):
@@ -87,12 +87,12 @@ async def untrack_product(update, context):
         return
 
     if not context.args:
-        await update.message.reply_text(translate("missing_id_untrack", lang))
+        await update.message.reply_text(translate("missing_id", lang))
         return
     try:
         untrack_id = int(context.args[0])
     except ValueError:
-        await update.message.reply_text(translate("id_untrack_error", lang))
+        await update.message.reply_text(translate("id_error", lang))
         return
 
     is_tracked = any((p_id, p_name) for p_id, p_name in res if p_id == untrack_id)
@@ -109,3 +109,26 @@ async def check_prices_job(context):
         lang = get_user_language(chat_id)
         text = translate("price_drop", lang, name=name, old=old, new=new)
         await context.bot.send_message(chat_id=chat_id, text=text)
+
+
+async def get_product_history(update, context):
+    lang = update.effective_user.language_code
+
+    if not context.args:
+        await update.message.reply_text(translate("missing_id", lang))
+        return
+    try:
+        history_id = int(context.args[0])
+    except ValueError:
+        await update.message.reply_text(translate("id_error", lang))
+        return
+
+    res = get_history(history_id)
+    if not res:
+        await update.message.reply_text(translate("missing_values", lang, id=history_id))
+        return
+
+    text = "\n".join(f"{timestamp[:16].replace('T', ' ')}: {p_price} €" for p_price, timestamp in res)
+    prices = [p_price for p_price, _ in res]
+    mean = round(sum(prices) / len(prices), 2)
+    await update.message.reply_text(translate("display_history", lang, id=history_id, items=text, mean=mean))
