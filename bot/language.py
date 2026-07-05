@@ -8,13 +8,18 @@ MESSAGES = {
             "⚠️ Per ora funziono solo con link Amazon.\n\n"
             "📄 Comandi disponibili:\n"
             "/track <url> — aggiunge un prodotto alla watch list\n"
-            "/list — mostra i prodotti che segui"
+            "/list — mostra i prodotti che segui\n"
+            "/untrack <id> — smette di seguire un prodotto"
         ),
         "track_usage": "Uso: /track <link Amazon>",
         "track_unsupported": "Per ora seguo solo link Amazon. 🙈",
         "track_ok": "✅ Ora seguo «{name}» a {price}€. Ti avviso quando scende!",
         "display_tracked": "Ecco la lista dei prodotti seguiti:\n{products}",
         "empty_list": "Non sono presenti prodotti seguiti!",
+        "missing_id_untrack": "Inserire l'id del prodotto da rimuovere dalla watch list",
+        "missing_product_untrack": "Il prodotto {id} non è seguito!",
+        "id_untrack_error": "Errore! L'id non è valido!",
+        "untrack_ok": "✅ Il prodotto {id} è stato rimosso dalla watch list!",
     },
     "en": {
         "welcome": (
@@ -23,13 +28,18 @@ MESSAGES = {
             "⚠️ For now I only work with Amazon links.\n\n"
             "📄 Available commands:\n"
             "/track <url> — add a product to your watch list\n"
-            "/list — show the products you follow"
+            "/list — show the products you follow\n"
+            "/untrack <id> — stop following a product"
         ),
         "track_usage": "Usage: /track <Amazon link>",
         "track_unsupported": "For now I only track Amazon links. 🙈",
         "track_ok": "✅ Now tracking «{name}» at {price}€. I'll let you know when it drops!",
         "display_tracked": "Here are the products you follow:\n{products}",
         "empty_list": "You are not following any product yet!",
+        "missing_id_untrack": "Insert the id of the product to remove from the watch list",
+        "missing_product_untrack": "The product {id} is not tracked!",
+        "id_untrack_error": "Error! The id is not valid!",
+        "untrack_ok": "✅ The product {id} has been removed from the watch list!",
     },
 }
 
