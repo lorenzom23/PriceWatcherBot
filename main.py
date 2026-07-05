@@ -2,10 +2,20 @@ from telegram.ext import ApplicationBuilder, CommandHandler
 import config
 from storage.database import init_db
 from bot.handlers import start, track, list_tracked, untrack_product, check_prices_job
+from telegram import BotCommand
+
+
+async def post_init(app):
+    await app.bot.set_my_commands([
+        BotCommand("track", "Aggiungi un prodotto da monitorare"),
+        BotCommand("list", "Mostra i prodotti che segui"),
+        BotCommand("untrack", "Smetti di seguire un prodotto"),
+    ])
+
 
 def main():
     init_db()
-    app = ApplicationBuilder().token(config.BOT_TOKEN).build()
+    app = ApplicationBuilder().token(config.BOT_TOKEN).post_init(post_init).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("track", track))
     app.add_handler(CommandHandler("list", list_tracked))
