@@ -97,8 +97,10 @@ def get_subscriptions(chat_id) -> list:
     connection = get_connection()
     cursor = connection.cursor()
 
-    products = cursor.execute("SELECT product_id FROM subscriptions WHERE chat_id = ?",
-                              (chat_id, )).fetchall()
+    products = cursor.execute("""SELECT subscriptions.product_id, products.name
+                                FROM subscriptions
+                                JOIN products ON subscriptions.product_id = products.id
+                                WHERE chat_id = ?""", (chat_id,)).fetchall()
 
     connection.close()
     return products
