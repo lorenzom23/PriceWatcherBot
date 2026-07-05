@@ -104,3 +104,26 @@ def get_subscriptions(chat_id) -> list:
 
     connection.close()
     return products
+
+# users
+def save_user(chat_id, language):
+    """Insert or update the user's language"""
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("""INSERT INTO users (chat_id, language) VALUES (?, ?)
+                      ON CONFLICT(chat_id) DO UPDATE SET language = excluded.language""",
+                   (chat_id, language))
+
+    connection.commit()
+    connection.close()
+
+def get_user_language(chat_id) -> str | None:
+    """Return the saved language of a user, or None"""
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    row = cursor.execute("SELECT language FROM users WHERE chat_id = ?", (chat_id,)).fetchone()
+
+    connection.close()
+    return row[0] if row else None

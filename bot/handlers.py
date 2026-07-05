@@ -3,17 +3,22 @@ from urllib.parse import urlparse
 
 from bot.language import translate
 from scrapers.registry import get_scraper
-from storage.repository import add_product, add_price, add_subscription, get_subscriptions, remove_subscription
+from storage.repository import (
+    add_product, add_price, add_subscription, get_subscriptions,
+    remove_subscription, save_user,
+)
 
 
 async def start(update, context):
     lang = update.effective_user.language_code
     name = update.effective_user.first_name
+    save_user(update.effective_chat.id, lang)
     await update.message.reply_text(translate("welcome", lang, name=name))
 
 
 async def track(update, context):
     lang = update.effective_user.language_code
+    save_user(update.effective_chat.id, lang)
 
     if not context.args:
         await update.message.reply_text(translate("track_usage", lang))

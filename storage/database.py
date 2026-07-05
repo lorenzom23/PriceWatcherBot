@@ -45,5 +45,12 @@ def init_db() -> None:
         )
     """)
 
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            chat_id INTEGER PRIMARY KEY,
+            language TEXT
+        )
+    """)
+
     connection.commit()
     connection.close()
