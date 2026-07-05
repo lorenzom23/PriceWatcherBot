@@ -12,8 +12,11 @@ def check_product(product_id, url) -> list:
     if not last_price or result.price >= last_price:
         return []
 
-    subscribers = get_subscribers(product_id)
-    return [(sub[0], result.name, last_price, result.price) for sub in subscribers]
+    alerts = []
+    for chat_id, target in get_subscribers(product_id):
+        if target is None or result.price <= target:
+            alerts.append((chat_id, result.name, last_price, result.price))
+    return alerts
 
 def check_all() -> list:
     result = []

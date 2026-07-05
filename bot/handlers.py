@@ -27,22 +27,40 @@ async def track(update, context):
 
     url = context.args[0]
     chat_id = update.effective_chat.id
+
+    target_price = None
+    if len(context.args) > 1:
+        try:
+            target_price = float(context.args[1])
+        except ValueError:
+            await update.message.reply_text(translate("track_bad_target", lang))
+            return
+
     try:
         scraper = get_scraper(url)
     except ValueError:
         await update.message.reply_text(translate("track_unsupported", lang))
         return
 
-    result = scraper.fetch(url)
-    website = urlparse(url).netloc
+    try:
+        result = scraper.fetch(url)
+    except Exception:
+        await update.message.reply_text(translate("track_error", lang))
+        return
 
+    website = urlparse(url).netloc
     product_id = add_product(url, result.name, website)
     add_price(product_id, result.price, datetime.now().isoformat())
-    add_subscription(chat_id, product_id)
+    add_subscription(chat_id, product_id, target_price)
 
-    await update.message.reply_text(
-        translate("track_ok", lang, name=result.name, price=result.price)
-    )
+    if target_price is None:
+        await update.message.reply_text(
+            translate("track_ok", lang, name=result.name, price=result.price)
+        )
+    else:
+        await update.message.reply_text(
+            translate("track_ok_target", lang, name=result.name, price=result.price, target=target_price)
+        )
 
 
 async def list_tracked(update, context):

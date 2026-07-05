@@ -75,7 +75,7 @@ def get_subscribers(product_id) -> list:
     connection = get_connection()
     cursor = connection.cursor()
 
-    subscribers = cursor.execute("SELECT chat_id FROM subscriptions WHERE product_id = ?",
+    subscribers = cursor.execute("SELECT chat_id, target_price FROM subscriptions WHERE product_id = ?",
                               (product_id, )).fetchall()
 
     connection.close()

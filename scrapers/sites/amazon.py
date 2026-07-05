@@ -17,6 +17,11 @@ CURRENCY = {
     "$": "USD",
 }
 
+PRICE_SELECTORS = [
+    "#corePrice_feature_div .a-offscreen",
+    ".a-price:not(.a-text-price) .a-offscreen",
+]
+
 
 class AmazonScraper(Scraper):
 
@@ -31,15 +36,24 @@ class AmazonScraper(Scraper):
         data = BeautifulSoup(response.text, "lxml")
 
         name_el = data.select_one("#productTitle")
-        price_el = data.select_one(".a-price .a-offscreen")
         symbol_el = data.select_one(".a-price-symbol")
-        if name_el is None or price_el is None or symbol_el is None:
+
+        price_text = self._find_price(data)
+
+        if name_el is None or price_text is None or symbol_el is None:
             raise ValueError("Pagina non riconosciuta: nome/prezzo/valuta non trovati")
 
         name = name_el.get_text().strip()
-        price = self._extract_price(price_el.get_text())
+        price = self._extract_price(price_text)
         currency = self._get_currency(symbol_el.get_text())
         return ScrapeResult(name, price, currency)
+
+    def _find_price(self, data) -> str | None:
+        for selector in PRICE_SELECTORS:
+            for el in data.select(selector):
+                if el.get_text().strip():
+                    return el.get_text()
+        return None
 
     def _extract_price(self, text: str) -> float:
         cleaned = "".join(text.split())
