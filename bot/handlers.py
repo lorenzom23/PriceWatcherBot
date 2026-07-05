@@ -2,10 +2,11 @@ from datetime import datetime
 from urllib.parse import urlparse
 
 from bot.language import translate
+from core.checker import check_all
 from scrapers.registry import get_scraper
 from storage.repository import (
     add_product, add_price, add_subscription, get_subscriptions,
-    remove_subscription, save_user,
+    remove_subscription, save_user, get_user_language,
 )
 
 
@@ -83,3 +84,10 @@ async def untrack_product(update, context):
 
     remove_subscription(chat_id, untrack_id)
     await update.message.reply_text(translate("untrack_ok", lang, id=untrack_id))
+
+
+async def check_prices_job(context):
+    for chat_id, name, old, new in check_all():
+        lang = get_user_language(chat_id)
+        text = translate("price_drop", lang, name=name, old=old, new=new)
+        await context.bot.send_message(chat_id=chat_id, text=text)

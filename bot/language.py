@@ -20,6 +20,7 @@ MESSAGES = {
         "missing_product_untrack": "Il prodotto {id} non è seguito!",
         "id_untrack_error": "Errore! L'id non è valido!",
         "untrack_ok": "✅ Il prodotto {id} è stato rimosso dalla watch list!",
+        "price_drop": "📉 Il prezzo di «{name}» è sceso da {old}€ a {new}€!",
     },
     "en": {
         "welcome": (
@@ -40,6 +41,7 @@ MESSAGES = {
         "missing_product_untrack": "The product {id} is not tracked!",
         "id_untrack_error": "Error! The id is not valid!",
         "untrack_ok": "✅ The product {id} has been removed from the watch list!",
+        "price_drop": "📉 The price of «{name}» dropped from {old}€ to {new}€!",
     },
 }
 
