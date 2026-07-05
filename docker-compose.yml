@@ -1,5 +1,6 @@
 services:
   bot:
+    image: ghcr.io/lorenzom23/pricewatcherbot:latest
     build: .
     env_file: .env
     volumes:
