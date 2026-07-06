@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 from urllib.parse import urlparse
 
@@ -43,7 +44,7 @@ async def track(update, context):
         return
 
     try:
-        result = scraper.fetch(url)
+        result = await asyncio.to_thread(scraper.fetch, url)
     except Exception:
         await update.message.reply_text(translate("track_error", lang))
         return
@@ -105,7 +106,9 @@ async def untrack_product(update, context):
 
 
 async def check_prices_job(context):
-    for chat_id, name, old, new in check_all():
+    # check_all() does blocking network + DB I/O; run the whole batch off the event loop.
+    # It runs in a single worker thread, so every SQLite connection stays thread-local.
+    for chat_id, name, old, new in await asyncio.to_thread(check_all):
         lang = get_user_language(chat_id)
         text = translate("price_drop", lang, name=name, old=old, new=new)
         await context.bot.send_message(chat_id=chat_id, text=text)
