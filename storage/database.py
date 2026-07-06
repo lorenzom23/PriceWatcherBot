@@ -8,7 +8,10 @@ def get_connection() -> sqlite3.Connection:
     folder = os.path.dirname(config.DB_PATH)
     if folder:
         os.makedirs(folder, exist_ok=True)
-    return sqlite3.connect(config.DB_PATH)
+    connection = sqlite3.connect(config.DB_PATH, timeout=10)  # busy timeout: job e handler girano su thread diversi
+    connection.execute("PRAGMA foreign_keys = ON")  # SQLite non applica le FK di default
+    connection.execute("PRAGMA journal_mode = WAL")
+    return connection
 
 
 def init_db() -> None:
@@ -51,6 +54,8 @@ def init_db() -> None:
             language TEXT
         )
     """)
+
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_price_history_product ON price_history (product_id)")
 
     connection.commit()
     connection.close()

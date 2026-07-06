@@ -2,12 +2,15 @@ import asyncio
 from datetime import datetime
 from urllib.parse import urlparse
 
+from telegram.error import Forbidden
+
 from bot.language import translate
 from core.checker import check_all
 from scrapers.registry import get_scraper
 from storage.repository import (
     add_product, add_price, add_subscription, get_subscriptions,
-    remove_subscription, save_user, get_user_language, get_history
+    remove_subscription, remove_chat_subscriptions, save_user,
+    get_user_language, get_history
 )
 
 
@@ -50,8 +53,10 @@ async def track(update, context):
         return
 
     website = urlparse(url).netloc
-    product_id = add_product(url, result.name, website)
-    add_price(product_id, result.price, datetime.now().isoformat())
+    product_id, created = add_product(url, result.name, website)
+    if created:
+        # se il prodotto esiste già lo storico è alimentato dal job: niente punti doppi
+        add_price(product_id, result.price, datetime.now().isoformat())
     add_subscription(chat_id, product_id, target_price)
 
     if target_price is None:
@@ -111,7 +116,10 @@ async def check_prices_job(context):
     for chat_id, name, old, new in await asyncio.to_thread(check_all):
         lang = get_user_language(chat_id)
         text = translate("price_drop", lang, name=name, old=old, new=new)
-        await context.bot.send_message(chat_id=chat_id, text=text)
+        try:
+            await context.bot.send_message(chat_id=chat_id, text=text)
+        except Forbidden:
+            remove_chat_subscriptions(chat_id)
 
 
 async def get_product_history(update, context):

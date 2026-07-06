@@ -1,6 +1,6 @@
 from datetime import datetime
 from scrapers.registry import get_scraper
-from storage.repository import get_subscribers, get_last_price, add_price, get_all_products
+from storage.repository import get_subscribers, get_last_price, add_price, get_tracked_products
 
 def check_product(product_id, url) -> list:
     scraper = get_scraper(url)
@@ -20,7 +20,7 @@ def check_product(product_id, url) -> list:
 
 def check_all() -> list:
     result = []
-    products = get_all_products()
+    products = get_tracked_products()
     for (product_id, product_url) in products:
         try:
             result.extend(check_product(product_id, product_url))

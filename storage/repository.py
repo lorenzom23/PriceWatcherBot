@@ -1,24 +1,26 @@
 from storage.database import get_connection
 
 # products
-def add_product(url, name, website) -> int:
-    """Add a product and returns the ID"""
+def add_product(url, name, website) -> tuple[int, bool]:
+    """Add a product and returns (id, created)"""
     connection = get_connection()
     cursor = connection.cursor()
 
     cursor.execute("INSERT OR IGNORE INTO products (url, name, website) VALUES (?, ?, ?)", (url, name, website))
+    created = cursor.rowcount == 1
     product_id = cursor.execute("SELECT id FROM products WHERE url = ?", (url,)).fetchone()
 
     connection.commit()
     connection.close()
-    return product_id[0]
+    return product_id[0], created
 
-def get_all_products() -> list:
-    """Retunrs list of all products"""
+def get_tracked_products() -> list:
+    """Returns the products at least one user subscribes to"""
     connection = get_connection()
     cursor = connection.cursor()
 
-    products = cursor.execute("SELECT id, url FROM products").fetchall()
+    products = cursor.execute("""SELECT id, url FROM products
+                                 WHERE id IN (SELECT product_id FROM subscriptions)""").fetchall()
 
     connection.close()
     return products
@@ -88,9 +90,26 @@ def remove_subscription(chat_id, product_id):
 
     cursor.execute("DELETE FROM subscriptions WHERE chat_id = ? AND product_id = ?",
                               (chat_id, product_id,))
+    _delete_orphans(cursor)
 
     connection.commit()
     connection.close()
+
+def remove_chat_subscriptions(chat_id):
+    """Delete every subscription of a chat (e.g. the user blocked the bot)"""
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("DELETE FROM subscriptions WHERE chat_id = ?", (chat_id,))
+    _delete_orphans(cursor)
+
+    connection.commit()
+    connection.close()
+
+def _delete_orphans(cursor):
+    """Drop products (and their history) nobody subscribes to anymore"""
+    cursor.execute("DELETE FROM price_history WHERE product_id NOT IN (SELECT product_id FROM subscriptions)")
+    cursor.execute("DELETE FROM products WHERE id NOT IN (SELECT product_id FROM subscriptions)")
 
 def get_subscriptions(chat_id) -> list:
     """Returns teh products tracked"""    
