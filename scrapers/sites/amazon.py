@@ -1,3 +1,4 @@
+import re
 from urllib import parse
 import requests
 from bs4 import BeautifulSoup
@@ -56,11 +57,20 @@ class AmazonScraper(Scraper):
         return None
 
     def _extract_price(self, text: str) -> float:
-        cleaned = "".join(text.split())
-        for symbol in CURRENCY:
-            cleaned = cleaned.replace(symbol, "")
-        cleaned = cleaned.replace(".", "")
-        cleaned = cleaned.replace(",", ".")
+        # keep only digits and separators (strips currency symbols, spaces, NBSP…)
+        cleaned = re.sub(r"[^\d.,]", "", text)
+        if "," in cleaned and "." in cleaned:
+            # both present: the rightmost separator is the decimal one
+            decimal = "," if cleaned.rfind(",") > cleaned.rfind(".") else "."
+            thousands = "." if decimal == "," else ","
+            cleaned = cleaned.replace(thousands, "").replace(decimal, ".")
+        elif "," in cleaned:
+            # single sep: decimal if it groups 1-2 trailing digits, else thousands
+            cleaned = cleaned.replace(",", "." if len(cleaned.rsplit(",", 1)[-1]) <= 2 else "")
+        elif "." in cleaned:
+            # ponytail: 3 trailing digits ⇒ thousands sep; a genuine 3-decimal price would
+            # misparse, but retail currency prices have ≤2 decimals
+            cleaned = cleaned.replace(".", "" if len(cleaned.rsplit(".", 1)[-1]) == 3 else ".")
         return float(cleaned)
 
     def _get_currency(self, text: str) -> str:
