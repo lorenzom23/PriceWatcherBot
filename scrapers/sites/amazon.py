@@ -1,4 +1,5 @@
 import re
+import random
 from urllib import parse
 import requests
 from requests.adapters import HTTPAdapter
@@ -12,10 +13,21 @@ DOMAINS = ['amazon', 'amzn']
 # suffissi non pubblici: "amazon.localhost" risolve in loopback → SSRF
 PRIVATE_TLDS = {"localhost", "local", "internal", "lan", "home", "corp"}
 
-USER_AGENT = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
-    "Accept-Language": "it-IT,it;q=0.9"
-}
+# UA reali e correnti: uno fisso è il fingerprint più facile da bloccare
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:127.0) Gecko/20100101 Firefox/127.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+]
+
+
+def _headers() -> dict:
+    return {
+        "User-Agent": random.choice(USER_AGENTS),
+        "Accept-Language": "it-IT,it;q=0.9",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    }
 
 CURRENCY = {
     "€": "EUR",
@@ -50,7 +62,7 @@ class AmazonScraper(Scraper):
             total=2, backoff_factor=1, status_forcelist=[500, 502, 503, 504]))
         session.mount("https://", adapter)
         session.mount("http://", adapter)
-        response = session.get(url=url, timeout=10, headers=USER_AGENT)
+        response = session.get(url=url, timeout=10, headers=_headers())
         response.raise_for_status()
 
         data = BeautifulSoup(response.text, "lxml")
