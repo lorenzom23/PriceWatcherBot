@@ -45,13 +45,19 @@ def init_db() -> None:
         )
     """)
 
-    # migrazione per i DB creati prima di user_seq: backfill 1..N per chat in ordine di inserimento
+    # migrazione per i DB creati prima di user_seq
     columns = [row[1] for row in cursor.execute("PRAGMA table_info(subscriptions)")]
     if "user_seq" not in columns:
         cursor.execute("ALTER TABLE subscriptions ADD COLUMN user_seq INTEGER")
-        cursor.execute("""UPDATE subscriptions SET user_seq = (
-                              SELECT COUNT(*) FROM subscriptions s2
-                              WHERE s2.chat_id = subscriptions.chat_id AND s2.id <= subscriptions.id)""")
+    # backfill fuori dal gate: l'ALTER è autocommit ma l'UPDATE no, quindi un crash a metà
+    # migrazione lascerebbe NULL permanenti; così ogni avvio ripara ciò che manca.
+    # Riga per riga: ogni MAX+1 vede le assegnazioni precedenti e non collide
+    # con i numeri già presenti (es. sottoscrizioni inserite dopo il crash).
+    for row_id, chat in cursor.execute("""SELECT id, chat_id FROM subscriptions
+                                          WHERE user_seq IS NULL ORDER BY chat_id, id""").fetchall():
+        cursor.execute("""UPDATE subscriptions SET user_seq =
+                              (SELECT COALESCE(MAX(user_seq), 0) + 1 FROM subscriptions WHERE chat_id = ?)
+                          WHERE id = ?""", (chat, row_id))
     cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_sub_chat_seq ON subscriptions (chat_id, user_seq)")
 
     cursor.execute("""

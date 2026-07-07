@@ -2,8 +2,9 @@ import asyncio
 from datetime import datetime
 from urllib.parse import urlparse
 
-from telegram.error import Forbidden
+from telegram.error import Forbidden, RetryAfter, TelegramError
 
+import config
 from bot.language import translate
 from core.checker import check_all
 from scrapers.registry import get_scraper
@@ -31,6 +32,11 @@ async def track(update, context):
 
     url = context.args[0]
     chat_id = update.effective_chat.id
+
+    # prima dello scrape: a limite raggiunto non si spende neanche la richiesta HTTP
+    if len(get_subscriptions(chat_id)) >= config.MAX_TRACKED_PER_CHAT:
+        await update.message.reply_text(translate("track_limit", lang, max=config.MAX_TRACKED_PER_CHAT))
+        return
 
     target_price = None
     if len(context.args) > 1:
@@ -123,6 +129,17 @@ async def check_prices_job(context):
             await context.bot.send_message(chat_id=chat_id, text=text)
         except Forbidden:
             remove_chat_subscriptions(chat_id)
+        except RetryAfter as e:
+            # flood control: rispetta l'attesa richiesta da Telegram e ritenta una volta
+            await asyncio.sleep(e.retry_after + 1)
+            try:
+                await context.bot.send_message(chat_id=chat_id, text=text)
+            except TelegramError as retry_err:
+                print(f"Alert perso per chat {chat_id}: {retry_err}")
+        except TelegramError as e:
+            # il prezzo nuovo è già in history, questo alert non verrà rigenerato:
+            # perderne uno è inevitabile, perdere anche i successivi del giro no
+            print(f"Alert perso per chat {chat_id}: {e}")
 
 
 async def get_product_history(update, context):

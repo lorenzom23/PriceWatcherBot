@@ -10,3 +10,5 @@ if not BOT_TOKEN:
 DB_PATH = os.getenv("DB_PATH", "./data/prices.db")
 CHECK_INTERVAL_HOURS = int(os.getenv("CHECK_INTERVAL_HOURS", "6"))
 HISTORY_RETENTION_DAYS = int(os.getenv("HISTORY_RETENTION_DAYS", "365"))
+# cap per chat: senza, un singolo utente può gonfiare il DB e stallare il job per tutti
+MAX_TRACKED_PER_CHAT = int(os.getenv("MAX_TRACKED_PER_CHAT", "25"))

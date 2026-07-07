@@ -62,7 +62,19 @@ class AmazonScraper(Scraper):
             total=2, backoff_factor=1, status_forcelist=[500, 502, 503, 504]))
         session.mount("https://", adapter)
         session.mount("http://", adapter)
-        response = session.get(url=url, timeout=10, headers=_headers())
+        # redirect seguiti a mano, ogni hop validato PRIMA della richiesta: altrimenti un open
+        # redirect su un dominio amazon (o un amzn.to ad arte) fa uscire la GET verso host
+        # arbitrari, anche nella LAN (SSRF)
+        response = session.get(url=url, timeout=10, headers=_headers(), allow_redirects=False)
+        for _ in range(5):
+            if not response.is_redirect:
+                break
+            next_url = parse.urljoin(response.url, response.headers["location"])
+            if not self.can_handle(next_url):
+                raise ValueError(f"Redirect fuori dominio: {next_url}")
+            response = session.get(url=next_url, timeout=10, headers=_headers(), allow_redirects=False)
+        if response.is_redirect:
+            raise ValueError("Troppi redirect")
         response.raise_for_status()
 
         data = BeautifulSoup(response.text, "lxml")
