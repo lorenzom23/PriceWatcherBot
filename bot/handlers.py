@@ -81,7 +81,7 @@ async def list_tracked(update, context):
         await update.message.reply_text(translate("empty_list", lang))
         return
 
-    text = "\n".join(f"[{p_id}] {p_name}" for p_id, p_name in res)
+    text = "\n".join(f"[{seq}] {p_name}" for seq, _p_id, p_name in res)
 
     await update.message.reply_text(translate("display_tracked", lang, items=text))
 
@@ -104,12 +104,12 @@ async def untrack_product(update, context):
         await update.message.reply_text(translate("id_error", lang))
         return
 
-    is_tracked = any(p_id == untrack_id for p_id, _ in res)
-    if not is_tracked:
+    product_id = next((pid for seq, pid, _ in res if seq == untrack_id), None)
+    if product_id is None:
         await update.message.reply_text(translate("missing_product_untrack", lang, id=untrack_id))
         return
 
-    remove_subscription(chat_id, untrack_id)
+    remove_subscription(chat_id, product_id)
     await update.message.reply_text(translate("untrack_ok", lang, id=untrack_id))
 
 
@@ -138,12 +138,13 @@ async def get_product_history(update, context):
         await update.message.reply_text(translate("id_error", lang))
         return
 
-    # gli id sono sequenziali: senza questo check chiunque può leggere lo storico altrui
-    if not any(p_id == history_id for p_id, _ in get_subscriptions(chat_id)):
+    # il numero è per-utente: si risolve solo dentro le sottoscrizioni della chat, niente storico altrui
+    product_id = next((pid for seq, pid, _ in get_subscriptions(chat_id) if seq == history_id), None)
+    if product_id is None:
         await update.message.reply_text(translate("missing_product_untrack", lang, id=history_id))
         return
 
-    res = get_history(history_id)
+    res = get_history(product_id)
     if not res:
         await update.message.reply_text(translate("missing_values", lang, id=history_id))
         return

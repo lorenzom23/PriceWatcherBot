@@ -69,12 +69,18 @@ def get_history(product_id) -> list:
 
 # subs
 def add_subscription(chat_id, product_id, target_price = None):
-    """Add a subscriber"""
+    """Add a subscriber, assigning the next per-user progressive id"""
     with _cursor(commit=True) as cursor:
-        # COALESCE: un re-track senza soglia non deve azzerare quella esistente
-        cursor.execute("INSERT INTO subscriptions (chat_id, product_id, target_price) VALUES (?, ?, ?)" \
-                       "ON CONFLICT(chat_id, product_id) DO UPDATE SET target_price = COALESCE(excluded.target_price, target_price)",
-                       (chat_id, product_id, target_price))
+        # COALESCE: un re-track senza soglia non deve azzerare quella esistente.
+        # Il DO UPDATE non tocca user_seq: un re-track mantiene il numero originale.
+        # MAX+1 non è atomico tra connessioni, ma l'indice unico trasforma la
+        # collisione (doppio /track simultaneo dello stesso utente) in errore, non in corruzione.
+        cursor.execute("""INSERT INTO subscriptions (chat_id, product_id, target_price, user_seq)
+                          VALUES (?, ?, ?, (SELECT COALESCE(MAX(user_seq), 0) + 1
+                                            FROM subscriptions WHERE chat_id = ?))
+                          ON CONFLICT(chat_id, product_id)
+                          DO UPDATE SET target_price = COALESCE(excluded.target_price, target_price)""",
+                       (chat_id, product_id, target_price, chat_id))
 
 def get_subscribers(product_id) -> list:
     """Get all the subscribers"""
@@ -101,12 +107,13 @@ def _delete_orphans(cursor):
     cursor.execute("DELETE FROM products WHERE id NOT IN (SELECT product_id FROM subscriptions)")
 
 def get_subscriptions(chat_id) -> list:
-    """Returns the products tracked"""
+    """Returns (user_seq, product_id, name) tuples, ordered by the per-user id"""
     with _cursor() as cursor:
-        return cursor.execute("""SELECT subscriptions.product_id, products.name
+        return cursor.execute("""SELECT subscriptions.user_seq, subscriptions.product_id, products.name
                                  FROM subscriptions
                                  JOIN products ON subscriptions.product_id = products.id
-                                 WHERE chat_id = ?""", (chat_id,)).fetchall()
+                                 WHERE chat_id = ?
+                                 ORDER BY subscriptions.user_seq""", (chat_id,)).fetchall()
 
 # users
 def save_user(chat_id, language):

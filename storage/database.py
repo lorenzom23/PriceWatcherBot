@@ -39,10 +39,20 @@ def init_db() -> None:
             chat_id INTEGER NOT NULL,
             product_id INTEGER NOT NULL,
             target_price REAL,
+            user_seq INTEGER,
             FOREIGN KEY (product_id) REFERENCES products(id),
             UNIQUE (chat_id, product_id)
         )
     """)
+
+    # migrazione per i DB creati prima di user_seq: backfill 1..N per chat in ordine di inserimento
+    columns = [row[1] for row in cursor.execute("PRAGMA table_info(subscriptions)")]
+    if "user_seq" not in columns:
+        cursor.execute("ALTER TABLE subscriptions ADD COLUMN user_seq INTEGER")
+        cursor.execute("""UPDATE subscriptions SET user_seq = (
+                              SELECT COUNT(*) FROM subscriptions s2
+                              WHERE s2.chat_id = subscriptions.chat_id AND s2.id <= subscriptions.id)""")
+    cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_sub_chat_seq ON subscriptions (chat_id, user_seq)")
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS price_history (
