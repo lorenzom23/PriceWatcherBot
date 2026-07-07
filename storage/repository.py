@@ -29,6 +29,11 @@ def get_tracked_products() -> list:
         return cursor.execute("""SELECT id, url, name FROM products
                                  WHERE id IN (SELECT product_id FROM subscriptions)""").fetchall()
 
+def update_product_name(product_id, name):
+    """Refresh the display name from the latest scrape (listings get renamed)"""
+    with _cursor(commit=True) as cursor:
+        cursor.execute("UPDATE products SET name = ? WHERE id = ? AND name != ?", (name, product_id, name))
+
 def record_check_failure(product_id) -> int:
     """Increment and return the consecutive-failure counter"""
     with _cursor(commit=True) as cursor:

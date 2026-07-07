@@ -70,11 +70,12 @@ async def track(update, context):
 
     if target_price is None:
         await update.message.reply_text(
-            translate("track_ok", lang, name=result.name, price=result.price)
+            translate("track_ok", lang, name=result.name, price=result.price, currency=result.currency)
         )
     else:
         await update.message.reply_text(
-            translate("track_ok_target", lang, name=result.name, price=result.price, target=target_price)
+            translate("track_ok_target", lang, name=result.name, price=result.price,
+                      target=target_price, currency=result.currency)
         )
 
 
@@ -87,7 +88,9 @@ async def list_tracked(update, context):
         await update.message.reply_text(translate("empty_list", lang))
         return
 
-    text = "\n".join(f"[{seq}] {p_name}" for seq, _p_id, p_name in res)
+    # 80 char/nome × cap 25 sta largamente nei 4096 di Telegram;
+    # oltre ~45 di MAX_TRACKED_PER_CHAT servirebbe la paginazione
+    text = "\n".join(f"[{seq}] {p_name[:80]}" for seq, _p_id, p_name in res)
 
     await update.message.reply_text(translate("display_tracked", lang, items=text))
 

@@ -1,5 +1,6 @@
 import re
 import random
+import time
 from urllib import parse
 import requests
 from requests.adapters import HTTPAdapter
@@ -29,14 +30,13 @@ def _headers() -> dict:
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     }
 
-CURRENCY = {
-    "€": "EUR",
-    "£": "GBP",
-    "$": "USD",
-}
+MAX_PAGE_BYTES = 8_000_000  # le pagine prodotto sono ~2-4MB: oltre è un'anomalia, non un prodotto
+FETCH_DEADLINE = 60  # tetto totale di download: il timeout di requests è solo tra-byte
 
 PRICE_SELECTORS = [
-    "#corePrice_feature_div .a-offscreen",
+    # :not(.a-text-price): il prezzo barrato di listino sta anche dentro corePrice,
+    # senza l'esclusione si registra quello e al giro dopo scatta un falso "ribasso"
+    "#corePrice_feature_div .a-price:not(.a-text-price) .a-offscreen",
     ".a-price:not(.a-text-price) .a-offscreen",
 ]
 
@@ -65,22 +65,24 @@ class AmazonScraper(Scraper):
         # redirect seguiti a mano, ogni hop validato PRIMA della richiesta: altrimenti un open
         # redirect su un dominio amazon (o un amzn.to ad arte) fa uscire la GET verso host
         # arbitrari, anche nella LAN (SSRF)
-        response = session.get(url=url, timeout=10, headers=_headers(), allow_redirects=False)
+        response = session.get(url=url, timeout=10, headers=_headers(), allow_redirects=False, stream=True)
         for _ in range(5):
             if not response.is_redirect:
                 break
+            response.close()  # il body del 3xx non serve
             next_url = parse.urljoin(response.url, response.headers["location"])
             if not self.can_handle(next_url):
                 raise ValueError(f"Redirect fuori dominio: {next_url}")
-            response = session.get(url=next_url, timeout=10, headers=_headers(), allow_redirects=False)
+            response = session.get(url=next_url, timeout=10, headers=_headers(), allow_redirects=False, stream=True)
         if response.is_redirect:
             raise ValueError("Troppi redirect")
         response.raise_for_status()
+        text = self._read_body(response)
 
-        data = BeautifulSoup(response.text, "lxml")
+        data = BeautifulSoup(text, "lxml")
 
         # Amazon risponde 200 con la robot page: non è un cambio di layout
-        if data.select_one("#captchacharacters") or "api-services-support@amazon.com" in response.text:
+        if data.select_one("#captchacharacters") or "api-services-support@amazon.com" in text:
             raise ScrapeBlocked("Amazon ha risposto con la pagina anti-bot")
 
         name_el = data.select_one("#productTitle")
@@ -88,13 +90,30 @@ class AmazonScraper(Scraper):
 
         price_text = self._find_price(data)
 
-        if name_el is None or price_text is None or symbol_el is None:
-            raise ValueError("Pagina non riconosciuta: nome/prezzo/valuta non trovati")
+        if name_el is None or price_text is None:
+            raise ValueError("Pagina non riconosciuta: nome/prezzo non trovati")
 
         name = name_el.get_text().strip()
         price = self._extract_price(price_text)
-        currency = self._get_currency(symbol_el.get_text())
+        # simbolo raw, mostrato nei messaggi così com'è: una valuta esotica non deve
+        # far fallire una pagina il cui prezzo è stato letto correttamente
+        currency = symbol_el.get_text().strip() if symbol_el else "€"
         return ScrapeResult(name, price, currency)
+
+    def _read_body(self, response) -> str:
+        # timeout=10 è tra-byte, non totale: un server a gocce terrebbe il thread occupato
+        # per sempre; e il body va limitato in dimensione (gira su un Raspberry Pi)
+        deadline = time.monotonic() + FETCH_DEADLINE
+        size = 0
+        chunks = []
+        for chunk in response.iter_content(65536):
+            chunks.append(chunk)
+            size += len(chunk)
+            if size > MAX_PAGE_BYTES:
+                raise ValueError(f"Pagina oltre {MAX_PAGE_BYTES} byte")
+            if time.monotonic() > deadline:
+                raise ValueError("Download troppo lento")
+        return b"".join(chunks).decode(response.encoding or "utf-8", errors="replace")
 
     def _find_price(self, data) -> str | None:
         for selector in PRICE_SELECTORS:
@@ -119,9 +138,3 @@ class AmazonScraper(Scraper):
             # misparse, but retail currency prices have ≤2 decimals
             cleaned = cleaned.replace(".", "" if len(cleaned.rsplit(".", 1)[-1]) == 3 else ".")
         return float(cleaned)
-
-    def _get_currency(self, text: str) -> str:
-        symbol = text.strip()
-        if symbol not in CURRENCY:
-            raise ValueError(f"Valuta sconosciuta: {symbol!r}")
-        return CURRENCY[symbol]
