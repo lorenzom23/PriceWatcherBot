@@ -23,9 +23,15 @@ def init_db() -> None:
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             url TEXT NOT NULL UNIQUE,
             name TEXT NOT NULL,
-            website TEXT NOT NULL
+            website TEXT NOT NULL,
+            failures INTEGER NOT NULL DEFAULT 0
         )
     """)
+
+    # migrazione per i DB creati prima della colonna failures
+    columns = [row[1] for row in cursor.execute("PRAGMA table_info(products)")]
+    if "failures" not in columns:
+        cursor.execute("ALTER TABLE products ADD COLUMN failures INTEGER NOT NULL DEFAULT 0")
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS subscriptions (

@@ -32,7 +32,7 @@ def main():
     app.job_queue.run_repeating(
         check_prices_job,
         interval=config.CHECK_INTERVAL_HOURS * 3600,
-        first=10,
+        first=300,  # un crash-loop del container non deve martellare i siti ad ogni riavvio
     )
 
     app.run_polling()

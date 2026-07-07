@@ -39,6 +39,9 @@ async def track(update, context):
         except ValueError:
             await update.message.reply_text(translate("track_bad_target", lang))
             return
+        if not 0 < target_price < 1e9:  # esclude anche nan/inf, che float() accetta
+            await update.message.reply_text(translate("track_bad_target", lang))
+            return
 
     try:
         scraper = get_scraper(url)
@@ -101,7 +104,7 @@ async def untrack_product(update, context):
         await update.message.reply_text(translate("id_error", lang))
         return
 
-    is_tracked = any((p_id, p_name) for p_id, p_name in res if p_id == untrack_id)
+    is_tracked = any(p_id == untrack_id for p_id, _ in res)
     if not is_tracked:
         await update.message.reply_text(translate("missing_product_untrack", lang, id=untrack_id))
         return
@@ -113,9 +116,9 @@ async def untrack_product(update, context):
 async def check_prices_job(context):
     # check_all() does blocking network + DB I/O; run the whole batch off the event loop.
     # It runs in a single worker thread, so every SQLite connection stays thread-local.
-    for chat_id, name, old, new in await asyncio.to_thread(check_all):
+    for message_key, chat_id, params in await asyncio.to_thread(check_all):
         lang = get_user_language(chat_id)
-        text = translate("price_drop", lang, name=name, old=old, new=new)
+        text = translate(message_key, lang, **params)
         try:
             await context.bot.send_message(chat_id=chat_id, text=text)
         except Forbidden:
@@ -124,6 +127,7 @@ async def check_prices_job(context):
 
 async def get_product_history(update, context):
     lang = update.effective_user.language_code
+    chat_id = update.effective_chat.id
 
     if not context.args:
         await update.message.reply_text(translate("missing_id", lang))
@@ -134,12 +138,18 @@ async def get_product_history(update, context):
         await update.message.reply_text(translate("id_error", lang))
         return
 
+    # gli id sono sequenziali: senza questo check chiunque può leggere lo storico altrui
+    if not any(p_id == history_id for p_id, _ in get_subscriptions(chat_id)):
+        await update.message.reply_text(translate("missing_product_untrack", lang, id=history_id))
+        return
+
     res = get_history(history_id)
     if not res:
         await update.message.reply_text(translate("missing_values", lang, id=history_id))
         return
 
-    text = "\n".join(f"{timestamp[:16].replace('T', ' ')}: {p_price} €" for p_price, timestamp in res)
     prices = [p_price for p_price, _ in res]
     mean = round(sum(prices) / len(prices), 2)
+    # Telegram tronca a 4096 char: mostra solo gli ultimi punti, la media resta su tutto
+    text = "\n".join(f"{timestamp[:16].replace('T', ' ')}: {p_price} €" for p_price, timestamp in res[-30:])
     await update.message.reply_text(translate("display_history", lang, id=history_id, items=text, mean=mean))

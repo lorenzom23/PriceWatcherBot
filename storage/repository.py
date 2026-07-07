@@ -19,11 +19,33 @@ def get_tracked_products() -> list:
     connection = get_connection()
     cursor = connection.cursor()
 
-    products = cursor.execute("""SELECT id, url FROM products
+    products = cursor.execute("""SELECT id, url, name FROM products
                                  WHERE id IN (SELECT product_id FROM subscriptions)""").fetchall()
 
     connection.close()
     return products
+
+def record_check_failure(product_id) -> int:
+    """Increment and return the consecutive-failure counter"""
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("UPDATE products SET failures = failures + 1 WHERE id = ?", (product_id,))
+    row = cursor.execute("SELECT failures FROM products WHERE id = ?", (product_id,)).fetchone()
+
+    connection.commit()
+    connection.close()
+    return row[0] if row else 0
+
+def reset_check_failures(product_id):
+    """Zero the failure counter after a successful check"""
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("UPDATE products SET failures = 0 WHERE id = ? AND failures != 0", (product_id,))
+
+    connection.commit()
+    connection.close()
 
 # price
 def add_price(product_id, price, timestamp):
@@ -33,6 +55,17 @@ def add_price(product_id, price, timestamp):
 
     cursor.execute("INSERT INTO price_history (product_id, price, timestamp) VALUES (?, ?, ?)",
                               (product_id, price, timestamp))
+
+    connection.commit()
+    connection.close()
+
+def prune_history(cutoff_iso):
+    """Delete the price points older than the ISO cutoff"""
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    # i timestamp sono ISO-8601: il confronto lessicografico è quello cronologico
+    cursor.execute("DELETE FROM price_history WHERE timestamp < ?", (cutoff_iso,))
 
     connection.commit()
     connection.close()
@@ -65,8 +98,9 @@ def add_subscription(chat_id, product_id, target_price = None):
     connection = get_connection()
     cursor = connection.cursor()
 
+    # COALESCE: un re-track senza soglia non deve azzerare quella esistente
     cursor.execute("INSERT INTO subscriptions (chat_id, product_id, target_price) VALUES (?, ?, ?)" \
-                    "ON CONFLICT(chat_id, product_id) DO UPDATE SET target_price = excluded.target_price",
+                    "ON CONFLICT(chat_id, product_id) DO UPDATE SET target_price = COALESCE(excluded.target_price, target_price)",
                               (chat_id, product_id, target_price))
 
     connection.commit()
