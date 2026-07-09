@@ -7,12 +7,12 @@ MESSAGES = {
             "Monitoro i prezzi dei prodotti e ti avviso quando scendono.\n"
             "⚠️ Per ora funziono solo con link Amazon.\n\n"
             "📄 Comandi disponibili:\n"
-            "/track <url> — aggiunge un prodotto alla watch list\n"
+            "/track <url> [prezzo] — aggiunge un prodotto (soglia opzionale)\n"
             "/list — mostra i prodotti che segui\n"
             "/untrack <id> — smette di seguire un prodotto\n"
             "/show_history <id> — mostra lo storico prezzi di un prodotto"
         ),
-        "track_usage": "Uso: /track <link Amazon>",
+        "track_usage": "Uso: /track <link Amazon> [prezzo]",
         "track_unsupported": "Per ora seguo solo link Amazon. 🙈",
         "track_ok": "✅ Ora seguo «{name}» a {price}{currency}. Ti avviso quando scende!",
         "track_ok_target": "✅ Ora seguo «{name}» a {price}{currency}. Ti avviso quando scende sotto {target}{currency}!",
@@ -43,12 +43,12 @@ MESSAGES = {
             "I track product prices and alert you when they drop.\n"
             "⚠️ For now I only work with Amazon links.\n\n"
             "📄 Available commands:\n"
-            "/track <url> — add a product to your watch list\n"
+            "/track <url> [price] — add a product (optional price threshold)\n"
             "/list — show the products you follow\n"
             "/untrack <id> — stop following a product\n"
             "/show_history <id> — show a product's price history"
         ),
-        "track_usage": "Usage: /track <Amazon link>",
+        "track_usage": "Usage: /track <Amazon link> [price]",
         "track_unsupported": "For now I only track Amazon links. 🙈",
         "track_ok": "✅ Now tracking «{name}» at {price}{currency}. I'll let you know when it drops!",
         "track_ok_target": "✅ Now tracking «{name}» at {price}{currency}. I'll alert you when it drops below {target}{currency}!",
