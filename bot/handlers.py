@@ -11,8 +11,17 @@ from scrapers.registry import get_scraper
 from storage.repository import (
     add_product, add_price, add_subscription, get_subscriptions,
     remove_subscription, remove_chat_subscriptions, save_user,
-    get_user_language, get_history, get_last_price
+    get_user_language, get_history, get_last_price,
+    change_target, remove_target
 )
+
+
+def _parse_target(text: str) -> float:
+    """Raises ValueError if text isn't a valid positive target price."""
+    value = float(text)
+    if not 0 < value < 1e9:  # esclude anche nan/inf, che float() accetta
+        raise ValueError
+    return value
 
 
 async def start(update, context):
@@ -41,11 +50,8 @@ async def track(update, context):
     target_price = None
     if len(context.args) > 1:
         try:
-            target_price = float(context.args[1])
+            target_price = _parse_target(context.args[1])
         except ValueError:
-            await update.message.reply_text(translate("track_bad_target", lang))
-            return
-        if not 0 < target_price < 1e9:  # esclude anche nan/inf, che float() accetta
             await update.message.reply_text(translate("track_bad_target", lang))
             return
 
@@ -180,3 +186,54 @@ async def get_product_history(update, context):
     # Telegram tronca a 4096 char: mostra solo gli ultimi punti, la media resta su tutto
     text = "\n".join(f"{timestamp[:16].replace('T', ' ')}: {p_price} €" for p_price, timestamp in res[-30:])
     await update.message.reply_text(translate("display_history", lang, name=product_name[:60], items=text, mean=mean))
+
+
+async def reset_target(update, context):
+    lang = update.effective_user.language_code
+    chat_id = update.effective_chat.id
+
+    if not context.args:
+        await update.message.reply_text(translate("missing_id", lang))
+        return
+    try:
+        target_id = int(context.args[0])
+    except ValueError:
+        await update.message.reply_text(translate("id_error", lang))
+        return
+    match = next(((pid, name) for seq, pid, name, _ in get_subscriptions(chat_id) if seq == target_id), None)
+    if match is None:
+        await update.message.reply_text(translate("missing_product_untrack", lang, id=target_id))
+        return
+    product_id, name = match
+
+    remove_target(chat_id, product_id)
+    await update.message.reply_text(translate("target_removed", lang, name=name[:60]))
+
+
+async def set_target(update, context):
+    lang = update.effective_user.language_code
+    chat_id = update.effective_chat.id
+
+    if len(context.args) < 2:
+        await update.message.reply_text(translate("set_target_usage", lang))
+        return
+    try:
+        target_id = int(context.args[0])
+    except ValueError:
+        await update.message.reply_text(translate("id_error", lang))
+        return
+    try:
+        new_target = _parse_target(context.args[1])
+    except ValueError:
+        await update.message.reply_text(translate("track_bad_target", lang))
+        return
+
+    match = next(((pid, name) for seq, pid, name, _ in get_subscriptions(chat_id) if seq == target_id), None)
+    if match is None:
+        await update.message.reply_text(translate("missing_product_untrack", lang, id=target_id))
+        return
+    product_id, name = match
+
+    change_target(chat_id, product_id, new_target)
+    await update.message.reply_text(translate("target_updated", lang, name=name[:60], target=new_target))
+

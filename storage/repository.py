@@ -121,6 +121,16 @@ def get_subscriptions(chat_id) -> list:
                                  WHERE chat_id = ?
                                  ORDER BY subscriptions.user_seq""", (chat_id,)).fetchall()
 
+def change_target(chat_id, product_id, target):
+    """Sets (or, if target is None, clears) the target price of a subscription"""
+    with _cursor(commit=True) as cursor:
+        cursor.execute("""UPDATE subscriptions SET target_price = ?
+                          WHERE chat_id = ? AND product_id = ?""", (target, chat_id, product_id))
+
+def remove_target(chat_id, product_id):
+    """Clear the target price of a subscription"""
+    change_target(chat_id, product_id, None)
+
 # users
 def save_user(chat_id, language):
     """Insert or update the user's language"""

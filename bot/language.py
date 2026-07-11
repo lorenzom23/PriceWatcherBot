@@ -10,7 +10,9 @@ MESSAGES = {
             "/track <url> [prezzo] — aggiunge un prodotto (soglia opzionale)\n"
             "/list — mostra i prodotti che segui\n"
             "/untrack <id> — smette di seguire un prodotto\n"
-            "/show_history <id> — mostra lo storico prezzi di un prodotto"
+            "/show_history <id> — mostra lo storico prezzi di un prodotto\n"
+            "/set_target <id> <prezzo> — imposta/aggiorna la soglia di un prodotto\n"
+            "/reset_target <id> — rimuove la soglia di un prodotto"
         ),
         "track_usage": "Uso: /track <link Amazon> [prezzo]",
         "track_unsupported": "Per ora seguo solo link Amazon. 🙈",
@@ -38,6 +40,11 @@ MESSAGES = {
         "cmd_list": "Mostra i prodotti che segui",
         "cmd_untrack": "Smetti di seguire un prodotto",
         "cmd_history": "Ottieni lo storico di un prodotto",
+        "cmd_set_target": "Imposta la soglia di un prodotto",
+        "cmd_reset_target": "Rimuovi la soglia di un prodotto",
+        "set_target_usage": "Uso: /set_target <id> <prezzo>",
+        "target_removed": "✅ Soglia rimossa per «{name}».",
+        "target_updated": "✅ Nuova soglia per «{name}»: {target}€",
     },
     "en": {
         "welcome": (
@@ -48,7 +55,9 @@ MESSAGES = {
             "/track <url> [price] — add a product (optional price threshold)\n"
             "/list — show the products you follow\n"
             "/untrack <id> — stop following a product\n"
-            "/show_history <id> — show a product's price history"
+            "/show_history <id> — show a product's price history\n"
+            "/set_target <id> <price> — set/update a product's target price\n"
+            "/reset_target <id> — remove a product's target price"
         ),
         "track_usage": "Usage: /track <Amazon link> [price]",
         "track_unsupported": "For now I only track Amazon links. 🙈",
@@ -76,6 +85,11 @@ MESSAGES = {
         "cmd_list": "Show the products you follow",
         "cmd_untrack": "Stop following a product",
         "cmd_history": "Get a product's price history",
+        "cmd_set_target": "Set a product's target price",
+        "cmd_reset_target": "Remove a product's target price",
+        "set_target_usage": "Usage: /set_target <id> <price>",
+        "target_removed": "✅ Target removed for «{name}».",
+        "target_updated": "✅ New target for «{name}»: {target}€",
     },
 }
 
