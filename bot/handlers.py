@@ -11,7 +11,7 @@ from scrapers.registry import get_scraper
 from storage.repository import (
     add_product, add_price, add_subscription, get_subscriptions,
     remove_subscription, remove_chat_subscriptions, save_user,
-    get_user_language, get_history
+    get_user_language, get_history, get_last_price
 )
 
 
@@ -88,9 +88,12 @@ async def list_tracked(update, context):
         await update.message.reply_text(translate("empty_list", lang))
         return
 
-    # 80 char/nome × cap 25 sta largamente nei 4096 di Telegram;
-    # oltre ~45 di MAX_TRACKED_PER_CHAT servirebbe la paginazione
-    text = "\n".join(f"[{seq}] {p_name[:80]}" for seq, _p_id, p_name in res)
+    # nome accorciato + ultimo prezzo; col cap di prodotti sta nei 4096 char di Telegram
+    label = translate("last_price", lang)
+    text = "\n".join(
+        f"[{seq}] {p_name[:40]} — {label}: {get_last_price(pid)}€"
+        for seq, pid, p_name in res
+    )
 
     await update.message.reply_text(translate("display_tracked", lang, items=text))
 
@@ -159,10 +162,11 @@ async def get_product_history(update, context):
         return
 
     # il numero è per-utente: si risolve solo dentro le sottoscrizioni della chat, niente storico altrui
-    product_id = next((pid for seq, pid, _ in get_subscriptions(chat_id) if seq == history_id), None)
-    if product_id is None:
+    match = next(((pid, name) for seq, pid, name in get_subscriptions(chat_id) if seq == history_id), None)
+    if match is None:
         await update.message.reply_text(translate("missing_product_untrack", lang, id=history_id))
         return
+    product_id, product_name = match
 
     res = get_history(product_id)
     if not res:
@@ -173,4 +177,4 @@ async def get_product_history(update, context):
     mean = round(sum(prices) / len(prices), 2)
     # Telegram tronca a 4096 char: mostra solo gli ultimi punti, la media resta su tutto
     text = "\n".join(f"{timestamp[:16].replace('T', ' ')}: {p_price} €" for p_price, timestamp in res[-30:])
-    await update.message.reply_text(translate("display_history", lang, id=history_id, items=text, mean=mean))
+    await update.message.reply_text(translate("display_history", lang, name=product_name[:60], items=text, mean=mean))

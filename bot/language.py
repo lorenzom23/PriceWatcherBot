@@ -20,6 +20,7 @@ MESSAGES = {
         "track_bad_target": "La soglia dev'essere un numero positivo. Esempio: /track <link> 130",
         "track_limit": "⚠️ Hai raggiunto il limite di {max} prodotti seguiti: rimuovine qualcuno con /untrack.",
         "display_tracked": "Ecco la lista dei prodotti seguiti:\n{items}",
+        "last_price": "ultimo prezzo",
         "empty_list": "Non sono presenti prodotti seguiti!",
         "missing_id": "Inserire l'id del prodotto!",
         "missing_product_untrack": "Il prodotto {id} non è seguito!",
@@ -29,7 +30,7 @@ MESSAGES = {
         "check_broken": "⚠️ Non riesco più a leggere il prezzo di «{name}». Continuerò a riprovare!",
         "missing_values": "Non sono presenti valori per il prodotto {id}",
         "display_history": (
-            "Prezzi registrati per il prodotto {id}: \n{items}\n"
+            "Prezzi registrati per «{name}»: \n{items}\n"
             "Media: {mean} €"
         ),
         "cmd_track": "Aggiungi un prodotto da monitorare",
@@ -56,6 +57,7 @@ MESSAGES = {
         "track_bad_target": "The threshold must be a positive number. Example: /track <link> 130",
         "track_limit": "⚠️ You've reached the limit of {max} tracked products: remove some with /untrack.",
         "display_tracked": "Here are the products you follow:\n{items}",
+        "last_price": "last price",
         "empty_list": "You are not following any product yet!",
         "missing_id": "Insert the id of the product!",
         "missing_product_untrack": "The product {id} is not tracked!",
@@ -65,7 +67,7 @@ MESSAGES = {
         "check_broken": "⚠️ I can no longer read the price of «{name}». I'll keep trying!",
         "missing_values": "No records are available for product {id}",
         "display_history": (
-            "Recorded prices for the product {id}: \n{items}\n"
+            "Recorded prices for «{name}»: \n{items}\n"
             "Mean: {mean} €"
         ),
         "cmd_track": "Add a product to monitor",
