@@ -112,9 +112,10 @@ def _delete_orphans(cursor):
     cursor.execute("DELETE FROM products WHERE id NOT IN (SELECT product_id FROM subscriptions)")
 
 def get_subscriptions(chat_id) -> list:
-    """Returns (user_seq, product_id, name) tuples, ordered by the per-user id"""
+    """Returns (user_seq, product_id, name, target_price) tuples, ordered by the per-user id"""
     with _cursor() as cursor:
-        return cursor.execute("""SELECT subscriptions.user_seq, subscriptions.product_id, products.name
+        return cursor.execute("""SELECT subscriptions.user_seq, subscriptions.product_id,
+                                        products.name, subscriptions.target_price
                                  FROM subscriptions
                                  JOIN products ON subscriptions.product_id = products.id
                                  WHERE chat_id = ?

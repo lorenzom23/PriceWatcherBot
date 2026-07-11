@@ -88,11 +88,13 @@ async def list_tracked(update, context):
         await update.message.reply_text(translate("empty_list", lang))
         return
 
-    # nome accorciato + ultimo prezzo; col cap di prodotti sta nei 4096 char di Telegram
-    label = translate("last_price", lang)
+    # nome accorciato + ultimo prezzo (+ soglia se impostata); col cap di prodotti sta nei 4096 char
+    last_label = translate("last_price", lang)
+    target_label = translate("target", lang)
     text = "\n".join(
-        f"[{seq}] {p_name[:40]} — {label}: {get_last_price(pid)}€"
-        for seq, pid, p_name in res
+        f"[{seq}] {p_name[:40]} — {last_label}: {get_last_price(pid)}€"
+        + (f" ({target_label}: {target}€)" if target is not None else "")
+        for seq, pid, p_name, target in res
     )
 
     await update.message.reply_text(translate("display_tracked", lang, items=text))
@@ -116,7 +118,7 @@ async def untrack_product(update, context):
         await update.message.reply_text(translate("id_error", lang))
         return
 
-    product_id = next((pid for seq, pid, _ in res if seq == untrack_id), None)
+    product_id = next((pid for seq, pid, _, _ in res if seq == untrack_id), None)
     if product_id is None:
         await update.message.reply_text(translate("missing_product_untrack", lang, id=untrack_id))
         return
@@ -162,7 +164,7 @@ async def get_product_history(update, context):
         return
 
     # il numero è per-utente: si risolve solo dentro le sottoscrizioni della chat, niente storico altrui
-    match = next(((pid, name) for seq, pid, name in get_subscriptions(chat_id) if seq == history_id), None)
+    match = next(((pid, name) for seq, pid, name, _ in get_subscriptions(chat_id) if seq == history_id), None)
     if match is None:
         await update.message.reply_text(translate("missing_product_untrack", lang, id=history_id))
         return
