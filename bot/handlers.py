@@ -12,7 +12,7 @@ from storage.repository import (
     add_product, add_price, add_subscription, get_subscriptions,
     remove_subscription, remove_chat_subscriptions, save_user,
     get_user_language, get_history, get_last_price,
-    change_target, remove_target
+    change_target, remove_target, get_product_url
 )
 
 
@@ -185,7 +185,10 @@ async def get_product_history(update, context):
     mean = round(sum(prices) / len(prices), 2)
     # Telegram tronca a 4096 char: mostra solo gli ultimi punti, la media resta su tutto
     text = "\n".join(f"{timestamp[:16].replace('T', ' ')}: {p_price} €" for p_price, timestamp in res[-30:])
-    await update.message.reply_text(translate("display_history", lang, name=product_name[:60], items=text, mean=mean))
+    url = get_product_url(product_id)
+    await update.message.reply_text(
+        translate("display_history", lang, name=product_name[:60], items=text, mean=mean, url=url)
+    )
 
 
 async def reset_target(update, context):

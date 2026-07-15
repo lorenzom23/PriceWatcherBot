@@ -29,6 +29,12 @@ def get_tracked_products() -> list:
         return cursor.execute("""SELECT id, url, name FROM products
                                  WHERE id IN (SELECT product_id FROM subscriptions)""").fetchall()
 
+def get_product_url(product_id) -> str | None:
+    """Return the product's URL"""
+    with _cursor() as cursor:
+        row = cursor.execute("SELECT url FROM products WHERE id = ?", (product_id,)).fetchone()
+    return row[0] if row else None
+
 def update_product_name(product_id, name):
     """Refresh the display name from the latest scrape (listings get renamed)"""
     with _cursor(commit=True) as cursor:

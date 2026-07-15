@@ -28,7 +28,7 @@ def check_product(product_id, url) -> list:
     alerts = []
     for chat_id, target in get_subscribers(product_id):
         if target is None or result.price <= target:
-            alerts.append((chat_id, result.name, last_price, result.price, result.currency))
+            alerts.append((chat_id, result.name, last_price, result.price, result.currency, url))
     return alerts
 
 def _record_failure(product_id, product_name, out):
@@ -57,8 +57,8 @@ def _check_batch(products) -> list:
                 break
             continue
         reset_check_failures(product_id)
-        result.extend(("price_drop", chat_id, {"name": name, "old": old, "new": new, "currency": cur})
-                      for chat_id, name, old, new, cur in alerts)
+        result.extend(("price_drop", chat_id, {"name": name, "old": old, "new": new, "currency": cur, "url": url})
+                      for chat_id, name, old, new, cur, url in alerts)
     return result
 
 def check_all() -> list:

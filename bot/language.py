@@ -29,12 +29,12 @@ MESSAGES = {
         "missing_product_untrack": "Il prodotto {id} non è seguito!",
         "id_error": "Errore! L'id non è valido!",
         "untrack_ok": "✅ Il prodotto {id} è stato rimosso dalla watch list!",
-        "price_drop": "📉 Il prezzo di «{name}» è sceso da {old}{currency} a {new}{currency}!",
+        "price_drop": "📉 Il prezzo di «{name}» è sceso da {old}{currency} a {new}{currency}!\n{url}",
         "check_broken": "⚠️ Non riesco più a leggere il prezzo di «{name}». Continuerò a riprovare!",
         "missing_values": "Non sono presenti valori per il prodotto {id}",
         "display_history": (
             "Prezzi registrati per «{name}»: \n{items}\n"
-            "Media: {mean} €"
+            "Media: {mean} €\n\n{url}"
         ),
         "cmd_track": "Aggiungi un prodotto da monitorare",
         "cmd_list": "Mostra i prodotti che segui",
@@ -74,12 +74,12 @@ MESSAGES = {
         "missing_product_untrack": "The product {id} is not tracked!",
         "id_error": "Error! The id is not valid!",
         "untrack_ok": "✅ The product {id} has been removed from the watch list!",
-        "price_drop": "📉 The price of «{name}» dropped from {old}{currency} to {new}{currency}!",
+        "price_drop": "📉 The price of «{name}» dropped from {old}{currency} to {new}{currency}!\n{url}",
         "check_broken": "⚠️ I can no longer read the price of «{name}». I'll keep trying!",
         "missing_values": "No records are available for product {id}",
         "display_history": (
             "Recorded prices for «{name}»: \n{items}\n"
-            "Mean: {mean} €"
+            "Mean: {mean} €\n\n{url}"
         ),
         "cmd_track": "Add a product to monitor",
         "cmd_list": "Show the products you follow",
