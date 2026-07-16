@@ -32,6 +32,13 @@ def _parse_target(text: str) -> float:
     return value
 
 
+async def cancel(update, context):
+    lang = update.effective_user.language_code
+    context.user_data.clear()
+    await update.message.reply_text(translate("cancelled", lang))
+    return ConversationHandler.END
+
+
 async def start(update, context):
     lang = update.effective_user.language_code
     name = update.effective_user.first_name
@@ -72,7 +79,7 @@ show_history_conv_handler = ConversationHandler(
     states={
         SELECT_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, show_history_receive_id)],
     },
-    fallbacks=[],
+    fallbacks=[CommandHandler("cancel", cancel)],
 )
 
 
@@ -199,7 +206,7 @@ track_conv_handler = ConversationHandler(
             MessageHandler(filters.TEXT & ~filters.COMMAND, track_receive_target),
         ],
     },
-    fallbacks=[],
+    fallbacks=[CommandHandler("cancel", cancel)],
 )
 
 
@@ -274,7 +281,7 @@ untrack_conv_handler = ConversationHandler(
     states={
         SELECT_UNTRACK_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, untrack_receive_id)],
     },
-    fallbacks=[],
+    fallbacks=[CommandHandler("cancel", cancel)],
 )
 
 
@@ -371,7 +378,7 @@ reset_target_conv_handler = ConversationHandler(
     states={
         SELECT_RESET_TARGET_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, reset_target_receive_id)],
     },
-    fallbacks=[],
+    fallbacks=[CommandHandler("cancel", cancel)],
 )
 
 
@@ -461,6 +468,6 @@ set_target_conv_handler = ConversationHandler(
         WAITING_TARGET_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_target_receive_id)],
         WAITING_TARGET_PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_target_receive_price)],
     },
-    fallbacks=[],
+    fallbacks=[CommandHandler("cancel", cancel)],
 )
 

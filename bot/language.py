@@ -46,6 +46,7 @@ MESSAGES = {
         "ask_target_price": "A che prezzo vuoi impostare la soglia?",
         "target_removed": "✅ Soglia rimossa per «{name}».",
         "target_updated": "✅ Nuova soglia per «{name}»: {target}€",
+        "cancelled": "❌ Operazione annullata.",
     },
     "en": {
         "welcome": (
@@ -92,6 +93,7 @@ MESSAGES = {
         "ask_target_price": "What price do you want to set as the target?",
         "target_removed": "✅ Target removed for «{name}».",
         "target_updated": "✅ New target for «{name}»: {target}€",
+        "cancelled": "❌ Cancelled.",
     },
 }
 
