@@ -22,6 +22,7 @@ WAITING_TARGET = 3
 SELECT_UNTRACK_ID = 4
 WAITING_TARGET_ID = 5
 WAITING_TARGET_PRICE = 6
+SELECT_RESET_TARGET_ID = 7
 
 def _parse_target(text: str) -> float:
     """Raises ValueError if text isn't a valid positive target price."""
@@ -51,27 +52,25 @@ async def show_history(update, context):
         await update.message.reply_text(translate("id_error", lang))
         return ConversationHandler.END
 
-    text = await get_product_history(lang, chat_id, history_id)
-    await update.message.reply_text(text)
+    await update.message.reply_text(_do_show_history(chat_id, lang, history_id))
     return ConversationHandler.END
 
-async def insert_id(update, context):
+async def show_history_receive_id(update, context):
     lang = update.effective_user.language_code
     chat_id = update.effective_chat.id
     try:
         history_id = int(update.message.text)
     except ValueError:
         await update.message.reply_text(translate("id_error", lang))
-        return SELECT_ID  # ask again
+        return SELECT_ID  # ridomanda
 
-    text = await get_product_history(lang, chat_id, history_id)
-    await update.message.reply_text(text)
+    await update.message.reply_text(_do_show_history(chat_id, lang, history_id))
     return ConversationHandler.END
 
-conv_handler = ConversationHandler(
+show_history_conv_handler = ConversationHandler(
     entry_points=[CommandHandler("show_history", show_history)],
     states={
-        SELECT_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, insert_id)],
+        SELECT_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, show_history_receive_id)],
     },
     fallbacks=[],
 )
@@ -228,13 +227,13 @@ async def list_tracked(update, context):
 def _do_untrack(chat_id, lang, untrack_id) -> str:
     product_id = next((pid for seq, pid, _, _ in get_subscriptions(chat_id) if seq == untrack_id), None)
     if product_id is None:
-        return translate("missing_product_untrack", lang, id=untrack_id)
+        return translate("product_not_tracked", lang, id=untrack_id)
 
     remove_subscription(chat_id, product_id)
     return translate("untrack_ok", lang, id=untrack_id)
 
 
-async def untrack_product(update, context):
+async def untrack(update, context):
     lang = update.effective_user.language_code
     chat_id = update.effective_chat.id
 
@@ -271,7 +270,7 @@ async def untrack_receive_id(update, context):
 
 
 untrack_conv_handler = ConversationHandler(
-    entry_points=[CommandHandler("untrack", untrack_product)],
+    entry_points=[CommandHandler("untrack", untrack)],
     states={
         SELECT_UNTRACK_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, untrack_receive_id)],
     },
@@ -302,11 +301,11 @@ async def check_prices_job(context):
             print(f"Alert perso per chat {chat_id}: {e}")
 
 
-async def get_product_history(lang, chat_id, history_id):
+def _do_show_history(chat_id, lang, history_id) -> str:
     # il numero è per-utente: si risolve solo dentro le sottoscrizioni della chat, niente storico altrui
     match = next(((pid, name) for seq, pid, name, _ in get_subscriptions(chat_id) if seq == history_id), None)
     if match is None:
-        return translate("missing_product_untrack", lang, id=history_id)
+        return translate("product_not_tracked", lang, id=history_id)
     product_id, product_name = match
 
     res = get_history(product_id)
@@ -321,26 +320,59 @@ async def get_product_history(lang, chat_id, history_id):
     return translate("display_history", lang, name=product_name[:60], items=text, mean=mean, url=url)
 
 
+def _do_reset_target(chat_id, lang, target_id) -> str:
+    match = next(((pid, name) for seq, pid, name, _ in get_subscriptions(chat_id) if seq == target_id), None)
+    if match is None:
+        return translate("product_not_tracked", lang, id=target_id)
+    product_id, name = match
+
+    remove_target(chat_id, product_id)
+    return translate("target_removed", lang, name=name[:60])
+
+
 async def reset_target(update, context):
     lang = update.effective_user.language_code
     chat_id = update.effective_chat.id
 
+    if not get_subscriptions(chat_id):
+        await update.message.reply_text(translate("empty_list", lang))
+        return ConversationHandler.END
+
     if not context.args:
         await update.message.reply_text(translate("missing_id", lang))
-        return
+        return SELECT_RESET_TARGET_ID
+
     try:
         target_id = int(context.args[0])
     except ValueError:
         await update.message.reply_text(translate("id_error", lang))
-        return
-    match = next(((pid, name) for seq, pid, name, _ in get_subscriptions(chat_id) if seq == target_id), None)
-    if match is None:
-        await update.message.reply_text(translate("missing_product_untrack", lang, id=target_id))
-        return
-    product_id, name = match
+        return ConversationHandler.END
 
-    remove_target(chat_id, product_id)
-    await update.message.reply_text(translate("target_removed", lang, name=name[:60]))
+    await update.message.reply_text(_do_reset_target(chat_id, lang, target_id))
+    return ConversationHandler.END
+
+
+async def reset_target_receive_id(update, context):
+    lang = update.effective_user.language_code
+    chat_id = update.effective_chat.id
+
+    try:
+        target_id = int(update.message.text)
+    except ValueError:
+        await update.message.reply_text(translate("id_error", lang))
+        return SELECT_RESET_TARGET_ID  # ridomanda
+
+    await update.message.reply_text(_do_reset_target(chat_id, lang, target_id))
+    return ConversationHandler.END
+
+
+reset_target_conv_handler = ConversationHandler(
+    entry_points=[CommandHandler("reset_target", reset_target)],
+    states={
+        SELECT_RESET_TARGET_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, reset_target_receive_id)],
+    },
+    fallbacks=[],
+)
 
 
 async def set_target(update, context):
@@ -359,7 +391,7 @@ async def set_target(update, context):
 
     match = next(((pid, name) for seq, pid, name, _ in get_subscriptions(chat_id) if seq == target_id), None)
     if match is None:
-        await update.message.reply_text(translate("missing_product_untrack", lang, id=target_id))
+        await update.message.reply_text(translate("product_not_tracked", lang, id=target_id))
         return ConversationHandler.END
     product_id, name = match
 
@@ -393,7 +425,7 @@ async def set_target_receive_id(update, context):
 
     match = next(((pid, name) for seq, pid, name, _ in get_subscriptions(chat_id) if seq == target_id), None)
     if match is None:
-        await update.message.reply_text(translate("missing_product_untrack", lang, id=target_id))
+        await update.message.reply_text(translate("product_not_tracked", lang, id=target_id))
         return ConversationHandler.END
     product_id, name = match
 
