@@ -3,6 +3,7 @@ from datetime import datetime
 from urllib.parse import urlparse
 
 from telegram.error import Forbidden, RetryAfter, TelegramError
+from telegram.ext import MessageHandler, CommandHandler, ConversationHandler, filters
 
 import config
 from bot.language import translate
@@ -15,6 +16,9 @@ from storage.repository import (
     change_target, remove_target, get_product_url
 )
 
+SELECT_ID = 1
+WAITING_URL = 2
+WAITING_TARGET = 3
 
 def _parse_target(text: str) -> float:
     """Raises ValueError if text isn't a valid positive target price."""
@@ -31,42 +35,62 @@ async def start(update, context):
     await update.message.reply_text(translate("welcome", lang, name=name))
 
 
-async def track(update, context):
+async def show_history(update, context):
     lang = update.effective_user.language_code
-    save_user(update.effective_chat.id, lang)
-
     if not context.args:
-        await update.message.reply_text(translate("track_usage", lang))
-        return
+        await update.message.reply_text(translate("missing_id", lang))
+        return SELECT_ID
 
-    url = context.args[0]
     chat_id = update.effective_chat.id
+    try:
+        history_id = int(context.args[0])
+    except ValueError:
+        await update.message.reply_text(translate("id_error", lang))
+        return ConversationHandler.END
 
-    # prima dello scrape: a limite raggiunto non si spende neanche la richiesta HTTP
-    if len(get_subscriptions(chat_id)) >= config.MAX_TRACKED_PER_CHAT:
-        await update.message.reply_text(translate("track_limit", lang, max=config.MAX_TRACKED_PER_CHAT))
-        return
+    text = await get_product_history(lang, chat_id, history_id)
+    await update.message.reply_text(text)
+    return ConversationHandler.END
 
-    target_price = None
-    if len(context.args) > 1:
-        try:
-            target_price = _parse_target(context.args[1])
-        except ValueError:
-            await update.message.reply_text(translate("track_bad_target", lang))
-            return
+async def insert_id(update, context):
+    lang = update.effective_user.language_code
+    chat_id = update.effective_chat.id
+    try:
+        history_id = int(update.message.text)
+    except ValueError:
+        await update.message.reply_text(translate("id_error", lang))
+        return SELECT_ID  # ask again
 
+    text = await get_product_history(lang, chat_id, history_id)
+    await update.message.reply_text(text)
+    return ConversationHandler.END
+
+conv_handler = ConversationHandler(
+    entry_points=[CommandHandler("show_history", show_history)],
+    states={
+        SELECT_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, insert_id)],
+    },
+    fallbacks=[],
+)
+
+
+async def _fetch_product(update, lang, url):
+    """Valida e scarica un prodotto. Risponde da sola in caso di errore; None = fallito."""
     try:
         scraper = get_scraper(url)
     except ValueError:
         await update.message.reply_text(translate("track_unsupported", lang))
-        return
+        return None
 
     try:
-        result = await asyncio.to_thread(scraper.fetch, url)
+        return await asyncio.to_thread(scraper.fetch, url)
     except Exception:
         await update.message.reply_text(translate("track_error", lang))
-        return
+        return None
 
+
+async def _save_tracking(update, chat_id, url, result, target_price, lang):
+    """Ultimo passo comune: salva prodotto/prezzo/sottoscrizione e conferma all'utente."""
     website = urlparse(url).netloc
     product_id, created = add_product(url, result.name, website)
     if created:
@@ -83,6 +107,98 @@ async def track(update, context):
             translate("track_ok_target", lang, name=result.name, price=result.price,
                       target=target_price, currency=result.currency)
         )
+
+
+async def track(update, context):
+    lang = update.effective_user.language_code
+    chat_id = update.effective_chat.id
+    save_user(chat_id, lang)
+
+    # prima dello scrape: a limite raggiunto non si spende neanche la richiesta HTTP
+    if len(get_subscriptions(chat_id)) >= config.MAX_TRACKED_PER_CHAT:
+        await update.message.reply_text(translate("track_limit", lang, max=config.MAX_TRACKED_PER_CHAT))
+        return ConversationHandler.END
+
+    if not context.args:
+        await update.message.reply_text(translate("track_usage", lang))
+        return WAITING_URL
+
+    url = context.args[0]
+
+    target_price = None
+    if len(context.args) > 1:
+        try:
+            target_price = _parse_target(context.args[1])
+        except ValueError:
+            await update.message.reply_text(translate("track_bad_target", lang))
+            return ConversationHandler.END
+
+    result = await _fetch_product(update, lang, url)
+    if result is None:
+        return ConversationHandler.END
+
+    await _save_tracking(update, chat_id, url, result, target_price, lang)
+    return ConversationHandler.END
+
+
+async def track_receive_url(update, context):
+    lang = update.effective_user.language_code
+    url = update.message.text.strip()
+
+    result = await _fetch_product(update, lang, url)
+    if result is None:
+        return WAITING_URL  # ridomanda l'url
+
+    context.user_data["track_url"] = url
+    context.user_data["track_result"] = result
+    await update.message.reply_text(
+        translate("track_found", lang, name=result.name, price=result.price, currency=result.currency)
+    )
+    return WAITING_TARGET
+
+
+async def track_skip_target(update, context):
+    lang = update.effective_user.language_code
+    chat_id = update.effective_chat.id
+    url = context.user_data.pop("track_url", None)
+    result = context.user_data.pop("track_result", None)
+    if url is None or result is None:
+        return ConversationHandler.END  # stato incoerente: niente da salvare
+
+    await _save_tracking(update, chat_id, url, result, None, lang)
+    return ConversationHandler.END
+
+
+async def track_receive_target(update, context):
+    lang = update.effective_user.language_code
+    chat_id = update.effective_chat.id
+
+    try:
+        target_price = _parse_target(update.message.text)
+    except ValueError:
+        await update.message.reply_text(translate("track_bad_target", lang))
+        return WAITING_TARGET  # ridomanda la soglia
+
+    url = context.user_data.pop("track_url", None)
+    result = context.user_data.pop("track_result", None)
+    if url is None or result is None:
+        return ConversationHandler.END
+
+    await _save_tracking(update, chat_id, url, result, target_price, lang)
+    return ConversationHandler.END
+
+
+track_conv_handler = ConversationHandler(
+    entry_points=[CommandHandler("track", track)],
+    states={
+        WAITING_URL: [MessageHandler(filters.TEXT & ~filters.COMMAND, track_receive_url)],
+        WAITING_TARGET: [
+            CommandHandler("skip", track_skip_target),
+            MessageHandler(filters.TEXT & ~filters.COMMAND, track_receive_target),
+        ],
+    },
+    fallbacks=[],
+)
 
 
 async def list_tracked(update, context):
@@ -156,39 +272,23 @@ async def check_prices_job(context):
             print(f"Alert perso per chat {chat_id}: {e}")
 
 
-async def get_product_history(update, context):
-    lang = update.effective_user.language_code
-    chat_id = update.effective_chat.id
-
-    if not context.args:
-        await update.message.reply_text(translate("missing_id", lang))
-        return
-    try:
-        history_id = int(context.args[0])
-    except ValueError:
-        await update.message.reply_text(translate("id_error", lang))
-        return
-
+async def get_product_history(lang, chat_id, history_id):
     # il numero è per-utente: si risolve solo dentro le sottoscrizioni della chat, niente storico altrui
     match = next(((pid, name) for seq, pid, name, _ in get_subscriptions(chat_id) if seq == history_id), None)
     if match is None:
-        await update.message.reply_text(translate("missing_product_untrack", lang, id=history_id))
-        return
+        return translate("missing_product_untrack", lang, id=history_id)
     product_id, product_name = match
 
     res = get_history(product_id)
     if not res:
-        await update.message.reply_text(translate("missing_values", lang, id=history_id))
-        return
+        return translate("missing_values", lang, id=history_id)
 
     prices = [p_price for p_price, _ in res]
     mean = round(sum(prices) / len(prices), 2)
     # Telegram tronca a 4096 char: mostra solo gli ultimi punti, la media resta su tutto
     text = "\n".join(f"{timestamp[:16].replace('T', ' ')}: {p_price} €" for p_price, timestamp in res[-30:])
     url = get_product_url(product_id)
-    await update.message.reply_text(
-        translate("display_history", lang, name=product_name[:60], items=text, mean=mean, url=url)
-    )
+    return translate("display_history", lang, name=product_name[:60], items=text, mean=mean, url=url)
 
 
 async def reset_target(update, context):

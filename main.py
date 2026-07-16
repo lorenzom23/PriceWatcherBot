@@ -1,13 +1,12 @@
-from telegram.ext import ApplicationBuilder, CommandHandler
+from telegram.ext import ApplicationBuilder, CommandHandler, ConversationHandler
 import config
 from storage.database import init_db
 from bot.handlers import (
-    start, track, list_tracked, untrack_product, check_prices_job,
-    get_product_history, set_target, reset_target
+    start, list_tracked, untrack_product, check_prices_job,
+    set_target, reset_target, conv_handler, track_conv_handler
 )
 from bot.language import translate
 from telegram import BotCommand
-
 
 def build_commands(lang):
     return [
@@ -29,10 +28,11 @@ def main():
     init_db()
     app = ApplicationBuilder().token(config.BOT_TOKEN).post_init(post_init).build()
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("track", track))
+    app.add_handler(track_conv_handler)
     app.add_handler(CommandHandler("list", list_tracked))
     app.add_handler(CommandHandler("untrack", untrack_product))
-    app.add_handler(CommandHandler("show_history", get_product_history))
+    app.add_handler(conv_handler)
+
     app.add_handler(CommandHandler("set_target", set_target))
     app.add_handler(CommandHandler("reset_target", reset_target))
 
