@@ -14,7 +14,7 @@ MESSAGES = {
             "/set_target <id> <prezzo> — imposta/aggiorna la soglia di un prodotto\n"
             "/reset_target <id> — rimuove la soglia di un prodotto"
         ),
-        "track_usage": "Uso: /track <link Amazon> [prezzo]",
+        "track_ask_url": "Manda il link Amazon del prodotto da monitorare.",
         "track_unsupported": "Per ora seguo solo link Amazon. 🙈",
         "track_ok": "✅ Ora seguo «{name}» a {price}{currency}. Ti avviso quando scende!",
         "track_ok_target": "✅ Ora seguo «{name}» a {price}{currency}. Ti avviso quando scende sotto {target}{currency}!",
@@ -26,7 +26,7 @@ MESSAGES = {
         "last_price": "ultimo prezzo",
         "target": "soglia",
         "empty_list": "Non sono presenti prodotti seguiti!",
-        "missing_id": "Inserire l'id del prodotto!",
+        "missing_id": "Inserire l'id del prodotto!\n\n{items}",
         "product_not_tracked": "Il prodotto {id} non è seguito!",
         "id_error": "Errore! L'id non è valido!",
         "untrack_ok": "✅ Il prodotto {id} è stato rimosso dalla watch list!",
@@ -61,7 +61,7 @@ MESSAGES = {
             "/set_target <id> <price> — set/update a product's target price\n"
             "/reset_target <id> — remove a product's target price"
         ),
-        "track_usage": "Usage: /track <Amazon link> [price]",
+        "track_ask_url": "Send the Amazon link of the product to track.",
         "track_unsupported": "For now I only track Amazon links. 🙈",
         "track_ok": "✅ Now tracking «{name}» at {price}{currency}. I'll let you know when it drops!",
         "track_ok_target": "✅ Now tracking «{name}» at {price}{currency}. I'll alert you when it drops below {target}{currency}!",
@@ -73,7 +73,7 @@ MESSAGES = {
         "last_price": "last price",
         "target": "target",
         "empty_list": "You are not following any product yet!",
-        "missing_id": "Insert the id of the product!",
+        "missing_id": "Insert the id of the product!\n\n{items}",
         "product_not_tracked": "The product {id} is not tracked!",
         "id_error": "Error! The id is not valid!",
         "untrack_ok": "✅ The product {id} has been removed from the watch list!",

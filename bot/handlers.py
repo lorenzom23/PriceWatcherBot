@@ -32,6 +32,11 @@ def _parse_target(text: str) -> float:
     return value
 
 
+def _format_tracked_list(res) -> str:
+    """id + nome per ogni prodotto seguito, per aiutare a scegliere quale id inserire."""
+    return "\n".join(f"[{seq}] {name[:40]}" for seq, _, name, _ in res)
+
+
 async def cancel(update, context):
     lang = update.effective_user.language_code
     context.user_data.clear()
@@ -48,11 +53,17 @@ async def start(update, context):
 
 async def show_history(update, context):
     lang = update.effective_user.language_code
+    chat_id = update.effective_chat.id
+    res = get_subscriptions(chat_id)
+
+    if not res:
+        await update.message.reply_text(translate("empty_list", lang))
+        return ConversationHandler.END
+
     if not context.args:
-        await update.message.reply_text(translate("missing_id", lang))
+        await update.message.reply_text(translate("missing_id", lang, items=_format_tracked_list(res)))
         return SELECT_ID
 
-    chat_id = update.effective_chat.id
     try:
         history_id = int(context.args[0])
     except ValueError:
@@ -73,15 +84,6 @@ async def show_history_receive_id(update, context):
 
     await update.message.reply_text(_do_show_history(chat_id, lang, history_id))
     return ConversationHandler.END
-
-show_history_conv_handler = ConversationHandler(
-    entry_points=[CommandHandler("show_history", show_history)],
-    states={
-        SELECT_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, show_history_receive_id)],
-    },
-    fallbacks=[CommandHandler("cancel", cancel)],
-)
-
 
 async def _fetch_product(update, lang, url):
     """Valida e scarica un prodotto. Risponde da sola in caso di errore; None = fallito."""
@@ -129,7 +131,7 @@ async def track(update, context):
         return ConversationHandler.END
 
     if not context.args:
-        await update.message.reply_text(translate("track_usage", lang))
+        await update.message.reply_text(translate("track_ask_url", lang))
         return WAITING_URL
 
     url = context.args[0]
@@ -197,19 +199,6 @@ async def track_receive_target(update, context):
     return ConversationHandler.END
 
 
-track_conv_handler = ConversationHandler(
-    entry_points=[CommandHandler("track", track)],
-    states={
-        WAITING_URL: [MessageHandler(filters.TEXT & ~filters.COMMAND, track_receive_url)],
-        WAITING_TARGET: [
-            CommandHandler("skip", track_skip_target),
-            MessageHandler(filters.TEXT & ~filters.COMMAND, track_receive_target),
-        ],
-    },
-    fallbacks=[CommandHandler("cancel", cancel)],
-)
-
-
 async def list_tracked(update, context):
     lang = update.effective_user.language_code
     chat_id = update.effective_chat.id
@@ -243,13 +232,14 @@ def _do_untrack(chat_id, lang, untrack_id) -> str:
 async def untrack(update, context):
     lang = update.effective_user.language_code
     chat_id = update.effective_chat.id
+    res = get_subscriptions(chat_id)
 
-    if not get_subscriptions(chat_id):
+    if not res:
         await update.message.reply_text(translate("empty_list", lang))
         return ConversationHandler.END
 
     if not context.args:
-        await update.message.reply_text(translate("missing_id", lang))
+        await update.message.reply_text(translate("missing_id", lang, items=_format_tracked_list(res)))
         return SELECT_UNTRACK_ID
 
     try:
@@ -274,15 +264,6 @@ async def untrack_receive_id(update, context):
 
     await update.message.reply_text(_do_untrack(chat_id, lang, untrack_id))
     return ConversationHandler.END
-
-
-untrack_conv_handler = ConversationHandler(
-    entry_points=[CommandHandler("untrack", untrack)],
-    states={
-        SELECT_UNTRACK_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, untrack_receive_id)],
-    },
-    fallbacks=[CommandHandler("cancel", cancel)],
-)
 
 
 async def check_prices_job(context):
@@ -340,13 +321,14 @@ def _do_reset_target(chat_id, lang, target_id) -> str:
 async def reset_target(update, context):
     lang = update.effective_user.language_code
     chat_id = update.effective_chat.id
+    res = get_subscriptions(chat_id)
 
-    if not get_subscriptions(chat_id):
+    if not res:
         await update.message.reply_text(translate("empty_list", lang))
         return ConversationHandler.END
 
     if not context.args:
-        await update.message.reply_text(translate("missing_id", lang))
+        await update.message.reply_text(translate("missing_id", lang, items=_format_tracked_list(res)))
         return SELECT_RESET_TARGET_ID
 
     try:
@@ -373,21 +355,17 @@ async def reset_target_receive_id(update, context):
     return ConversationHandler.END
 
 
-reset_target_conv_handler = ConversationHandler(
-    entry_points=[CommandHandler("reset_target", reset_target)],
-    states={
-        SELECT_RESET_TARGET_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, reset_target_receive_id)],
-    },
-    fallbacks=[CommandHandler("cancel", cancel)],
-)
-
-
 async def set_target(update, context):
     lang = update.effective_user.language_code
     chat_id = update.effective_chat.id
+    res = get_subscriptions(chat_id)
+
+    if not res:
+        await update.message.reply_text(translate("empty_list", lang))
+        return ConversationHandler.END
 
     if not context.args:
-        await update.message.reply_text(translate("missing_id", lang))
+        await update.message.reply_text(translate("missing_id", lang, items=_format_tracked_list(res)))
         return WAITING_TARGET_ID
 
     try:
@@ -396,7 +374,7 @@ async def set_target(update, context):
         await update.message.reply_text(translate("id_error", lang))
         return ConversationHandler.END
 
-    match = next(((pid, name) for seq, pid, name, _ in get_subscriptions(chat_id) if seq == target_id), None)
+    match = next(((pid, name) for seq, pid, name, _ in res if seq == target_id), None)
     if match is None:
         await update.message.reply_text(translate("product_not_tracked", lang, id=target_id))
         return ConversationHandler.END
@@ -462,12 +440,33 @@ async def set_target_receive_price(update, context):
     return ConversationHandler.END
 
 
-set_target_conv_handler = ConversationHandler(
-    entry_points=[CommandHandler("set_target", set_target)],
+conversation_handler = ConversationHandler(
+    entry_points=[
+        CommandHandler("track", track),
+        CommandHandler("untrack", untrack),
+        CommandHandler("show_history", show_history),
+        CommandHandler("set_target", set_target),
+        CommandHandler("reset_target", reset_target),
+    ],
     states={
+        SELECT_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, show_history_receive_id)],
+        WAITING_URL: [MessageHandler(filters.TEXT & ~filters.COMMAND, track_receive_url)],
+        WAITING_TARGET: [
+            CommandHandler("skip", track_skip_target),
+            MessageHandler(filters.TEXT & ~filters.COMMAND, track_receive_target),
+        ],
+        SELECT_UNTRACK_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, untrack_receive_id)],
         WAITING_TARGET_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_target_receive_id)],
         WAITING_TARGET_PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_target_receive_price)],
+        SELECT_RESET_TARGET_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, reset_target_receive_id)],
     },
-    fallbacks=[CommandHandler("cancel", cancel)],
+    fallbacks=[
+        CommandHandler("cancel", cancel),
+        CommandHandler("track", track),
+        CommandHandler("untrack", untrack),
+        CommandHandler("show_history", show_history),
+        CommandHandler("set_target", set_target),
+        CommandHandler("reset_target", reset_target),
+    ],
 )
 
