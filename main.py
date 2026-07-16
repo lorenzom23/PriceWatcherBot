@@ -2,8 +2,8 @@ from telegram.ext import ApplicationBuilder, CommandHandler, ConversationHandler
 import config
 from storage.database import init_db
 from bot.handlers import (
-    start, list_tracked, untrack_product, check_prices_job,
-    set_target, reset_target, conv_handler, track_conv_handler
+    start, list_tracked, check_prices_job, reset_target,
+    conv_handler, track_conv_handler, untrack_conv_handler, set_target_conv_handler
 )
 from bot.language import translate
 from telegram import BotCommand
@@ -30,10 +30,10 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(track_conv_handler)
     app.add_handler(CommandHandler("list", list_tracked))
-    app.add_handler(CommandHandler("untrack", untrack_product))
+    app.add_handler(untrack_conv_handler)
     app.add_handler(conv_handler)
 
-    app.add_handler(CommandHandler("set_target", set_target))
+    app.add_handler(set_target_conv_handler)
     app.add_handler(CommandHandler("reset_target", reset_target))
 
     app.job_queue.run_repeating(
