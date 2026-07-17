@@ -303,7 +303,15 @@ def _do_show_history(chat_id, lang, history_id) -> str:
     prices = [p_price for p_price, _ in res]
     mean = round(sum(prices) / len(prices), 2)
     # Telegram tronca a 4096 char: mostra solo gli ultimi punti, la media resta su tutto
-    text = "\n".join(f"{timestamp[:16].replace('T', ' ')}: {p_price} €" for p_price, timestamp in res[-30:])
+
+    last_price = None
+    res_to_print = []
+    for price, ts in res:
+        if last_price != price:
+            res_to_print.append((price, ts))
+            last_price = price
+
+    text = "\n".join(f"{timestamp[:16].replace('T', ' ')}: {p_price} €" for p_price, timestamp in res_to_print[-10:])
     url = get_product_url(product_id)
     return translate("display_history", lang, name=product_name[:60], items=text, mean=mean, url=url)
 
@@ -459,6 +467,7 @@ conversation_handler = ConversationHandler(
         WAITING_TARGET_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_target_receive_id)],
         WAITING_TARGET_PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_target_receive_price)],
         SELECT_RESET_TARGET_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, reset_target_receive_id)],
+        ConversationHandler.TIMEOUT: [MessageHandler(filters.ALL, cancel)],
     },
     fallbacks=[
         CommandHandler("cancel", cancel),
@@ -468,5 +477,6 @@ conversation_handler = ConversationHandler(
         CommandHandler("set_target", set_target),
         CommandHandler("reset_target", reset_target),
     ],
+    conversation_timeout=180,
 )
 
