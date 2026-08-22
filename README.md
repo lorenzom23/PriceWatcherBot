@@ -44,20 +44,23 @@ Aggiungere un sito nuovo = aggiungere una classe `Scraper` in `scrapers/sites/`:
 ## Setup
 
 ```bash
-pip install -r requirements.txt
+uv sync
 cp .env.example .env   # BOT_TOKEN obbligatorio
-python main.py
+uv run python main.py
 ```
+
+`uv.lock` pins the complete dependency tree. Use `uv sync` to create or update
+the local environment, and `uv run` to execute commands inside it.
 
 Variabili d'ambiente (`.env`):
 
-| Nome | Default | Descrizione |
-|---|---|---|
-| `BOT_TOKEN` | — | token del bot Telegram (obbligatorio) |
-| `DB_PATH` | `./data/prices.db` | percorso del database SQLite |
-| `CHECK_INTERVAL_HOURS` | `6` | ogni quante ore ricontrollare i prezzi |
-| `HISTORY_RETENTION_DAYS` | `365` | giorni di storico prezzi conservati |
-| `MAX_TRACKED_PER_CHAT` | `25` | limite di prodotti tracciabili per chat |
+| Nome                     | Default            | Descrizione                             |
+| ------------------------ | ------------------ | --------------------------------------- |
+| `BOT_TOKEN`              | —                  | token del bot Telegram (obbligatorio)   |
+| `DB_PATH`                | `./data/prices.db` | percorso del database SQLite            |
+| `CHECK_INTERVAL_HOURS`   | `6`                | ogni quante ore ricontrollare i prezzi  |
+| `HISTORY_RETENTION_DAYS` | `365`              | giorni di storico prezzi conservati     |
+| `MAX_TRACKED_PER_CHAT`   | `25`               | limite di prodotti tracciabili per chat |
 
 ## Docker
 
@@ -70,5 +73,5 @@ Usa l'immagine `ghcr.io/lorenzom23/pricewatcherbot:latest` (o la builda in local
 ## Test
 
 ```bash
-pytest
+uv run pytest
 ```
