@@ -1,11 +1,12 @@
-from telegram.ext import ApplicationBuilder, CommandHandler
 import config
+from telegram import BotCommand
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
 from storage.database import init_db
 from bot.handlers import (
-    start, list_tracked, check_prices_job, conversation_handler
+    start, list_tracked, check_prices_job, conversation_handler, authorized_users
 )
 from bot.language import translate
-from telegram import BotCommand
+
 
 def build_commands(lang):
     return [
@@ -26,9 +27,10 @@ async def post_init(app):
 def main():
     init_db()
     app = ApplicationBuilder().token(config.BOT_TOKEN).post_init(post_init).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("list", list_tracked))
+    app.add_handler(CommandHandler("start", start, filters=authorized_users))
+    app.add_handler(CommandHandler("list", list_tracked, filters=authorized_users))
     app.add_handler(conversation_handler)
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & authorized_users, start))
 
     app.job_queue.run_repeating(
         check_prices_job,
@@ -37,6 +39,7 @@ def main():
     )
 
     app.run_polling()
+
 
 if __name__ == "__main__":
     main()

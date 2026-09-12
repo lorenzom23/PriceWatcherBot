@@ -8,12 +8,14 @@ from telegram.ext import MessageHandler, CommandHandler, ConversationHandler, fi
 import config
 from bot.language import translate
 from core.checker import check_all
+from core.models import House
 from scrapers.registry import get_scraper
 from storage.repository import (
     add_product, add_price, add_subscription, get_subscriptions,
     remove_subscription, remove_chat_subscriptions, save_user,
     get_user_language, get_history, get_last_price,
-    change_target, remove_target, get_product_url
+    change_target, remove_target, get_product_url, get_houses, add_houses,
+    get_house_searches_for_chat, remove_house_search
 )
 
 SELECT_ID = 1
@@ -23,6 +25,13 @@ SELECT_UNTRACK_ID = 4
 WAITING_TARGET_ID = 5
 WAITING_TARGET_PRICE = 6
 SELECT_RESET_TARGET_ID = 7
+
+authorized_users = (
+    filters.ALL
+    if not config.AUTH_USER_IDS
+    else filters.User(config.AUTH_USER_IDS)
+)
+
 
 def _parse_target(text: str) -> float:
     """Raises ValueError if text isn't a valid positive target price."""
@@ -73,6 +82,7 @@ async def show_history(update, context):
     await update.message.reply_text(_do_show_history(chat_id, lang, history_id))
     return ConversationHandler.END
 
+
 async def show_history_receive_id(update, context):
     lang = update.effective_user.language_code
     chat_id = update.effective_chat.id
@@ -85,23 +95,33 @@ async def show_history_receive_id(update, context):
     await update.message.reply_text(_do_show_history(chat_id, lang, history_id))
     return ConversationHandler.END
 
-async def _fetch_product(update, lang, url):
-    """Valida e scarica un prodotto. Risponde da sola in caso di errore; None = fallito."""
+
+async def _fetch_product(url):
+    """Valida e scarica un prodotto."""
     try:
         scraper = get_scraper(url)
     except ValueError:
-        await update.message.reply_text(translate("track_unsupported", lang))
-        return None
-
+        err = "track_unsupported"
+        return None, err
     try:
-        return await asyncio.to_thread(scraper.fetch, url)
-    except Exception:
-        await update.message.reply_text(translate("track_error", lang))
-        return None
+        return await asyncio.to_thread(scraper.fetch, url), None
+    except Exception as e:
+        print(f"Error during scrape of {url}: {e}")
+        err = "track_error"
+        return None, err
 
 
 async def _save_tracking(update, chat_id, url, result, target_price, lang):
     """Ultimo passo comune: salva prodotto/prezzo/sottoscrizione e conferma all'utente."""
+    if isinstance(result, list[House]):
+        existing = get_houses(chat_id, url)
+        if not existing:
+            add_houses(chat_id, url, result)
+            await update.message.reply_text(translate("track_houses_ok", lang, count=len(result)))
+        else:
+            await update.message.reply_text(translate("track_houses_existing", lang, count=len(existing)))
+        return
+
     website = urlparse(url).netloc
     product_id, created = add_product(url, result.name, website)
     if created:
@@ -144,9 +164,10 @@ async def track(update, context):
             await update.message.reply_text(translate("track_bad_target", lang))
             return ConversationHandler.END
 
-    result = await _fetch_product(update, lang, url)
+    result, err = await _fetch_product(url)
     if result is None:
-        return ConversationHandler.END
+        await update.message.reply_text(translate(err, lang))
+        return WAITING_URL if err == "track_error" else ConversationHandler.END
 
     await _save_tracking(update, chat_id, url, result, target_price, lang)
     return ConversationHandler.END
@@ -156,9 +177,14 @@ async def track_receive_url(update, context):
     lang = update.effective_user.language_code
     url = update.message.text.strip()
 
-    result = await _fetch_product(update, lang, url)
+    result, err = await _fetch_product(url)
     if result is None:
-        return WAITING_URL  # ridomanda l'url
+        await update.message.reply_text(translate(err, lang))
+        return WAITING_URL if err == "track_error" else ConversationHandler.END
+
+    if isinstance(result, list[House]):
+        await _save_tracking(update, update.effective_chat.id, url, result, None, lang)
+        return ConversationHandler.END
 
     context.user_data["track_url"] = url
     context.user_data["track_result"] = result
@@ -450,33 +476,32 @@ async def set_target_receive_price(update, context):
 
 conversation_handler = ConversationHandler(
     entry_points=[
-        CommandHandler("track", track),
-        CommandHandler("untrack", untrack),
-        CommandHandler("show_history", show_history),
-        CommandHandler("set_target", set_target),
-        CommandHandler("reset_target", reset_target),
+        CommandHandler("track", track, filters=authorized_users),
+        CommandHandler("untrack", untrack, filters=authorized_users),
+        CommandHandler("show_history", show_history, filters=authorized_users),
+        CommandHandler("set_target", set_target, filters=authorized_users),
+        CommandHandler("reset_target", reset_target, filters=authorized_users),
     ],
     states={
-        SELECT_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, show_history_receive_id)],
-        WAITING_URL: [MessageHandler(filters.TEXT & ~filters.COMMAND, track_receive_url)],
+        SELECT_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND & authorized_users, show_history_receive_id)],
+        WAITING_URL: [MessageHandler(filters.TEXT & ~filters.COMMAND & authorized_users, track_receive_url)],
         WAITING_TARGET: [
             CommandHandler("skip", track_skip_target),
-            MessageHandler(filters.TEXT & ~filters.COMMAND, track_receive_target),
+            MessageHandler(filters.TEXT & ~filters.COMMAND & authorized_users, track_receive_target),
         ],
-        SELECT_UNTRACK_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, untrack_receive_id)],
-        WAITING_TARGET_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_target_receive_id)],
-        WAITING_TARGET_PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_target_receive_price)],
-        SELECT_RESET_TARGET_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, reset_target_receive_id)],
+        SELECT_UNTRACK_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND & authorized_users, untrack_receive_id)],
+        WAITING_TARGET_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND & authorized_users, set_target_receive_id)],
+        WAITING_TARGET_PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND & authorized_users, set_target_receive_price)],
+        SELECT_RESET_TARGET_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND & authorized_users, reset_target_receive_id)],
         ConversationHandler.TIMEOUT: [MessageHandler(filters.ALL, cancel)],
     },
     fallbacks=[
-        CommandHandler("cancel", cancel),
-        CommandHandler("track", track),
-        CommandHandler("untrack", untrack),
-        CommandHandler("show_history", show_history),
-        CommandHandler("set_target", set_target),
-        CommandHandler("reset_target", reset_target),
+        CommandHandler("cancel", cancel, filters=authorized_users),
+        CommandHandler("track", track, filters=authorized_users),
+        CommandHandler("untrack", untrack, filters=authorized_users),
+        CommandHandler("show_history", show_history, filters=authorized_users),
+        CommandHandler("set_target", set_target, filters=authorized_users),
+        CommandHandler("reset_target", reset_target, filters=authorized_users),
     ],
     conversation_timeout=180,
 )
-

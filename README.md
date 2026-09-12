@@ -19,6 +19,8 @@ Bot Telegram che tiene traccia del prezzo di prodotti online e avvisa gli utenti
 - `/reset_target <id>` — rimuove la soglia
 - `/cancel` — annulla una conversazione in corso
 
+Il primo `/track` di una ricerca Immobiliare.it salva le case trovate. I controlli successivi notificano le case nuove e i ribassi. `/untrack <url-ricerca>` rimuove una ricerca Immobiliare.it.
+
 ## Struttura del progetto
 
 ```
@@ -54,13 +56,17 @@ the local environment, and `uv run` to execute commands inside it.
 
 Variabili d'ambiente (`.env`):
 
-| Nome                     | Default            | Descrizione                             |
-| ------------------------ | ------------------ | --------------------------------------- |
-| `BOT_TOKEN`              | —                  | token del bot Telegram (obbligatorio)   |
-| `DB_PATH`                | `./data/prices.db` | percorso del database SQLite            |
-| `CHECK_INTERVAL_HOURS`   | `6`                | ogni quante ore ricontrollare i prezzi  |
-| `HISTORY_RETENTION_DAYS` | `365`              | giorni di storico prezzi conservati     |
-| `MAX_TRACKED_PER_CHAT`   | `25`               | limite di prodotti tracciabili per chat |
+| Nome                     | Default                     | Descrizione                                                     |
+| ------------------------ | --------------------------- | --------------------------------------------------------------- |
+| `BOT_TOKEN`              | —                           | token del bot Telegram (obbligatorio)                           |
+| `DB_PATH`                | `./data/prices.db`          | percorso del database SQLite                                    |
+| `CHECK_INTERVAL_HOURS`   | `6`                         | ogni quante ore ricontrollare i prezzi                          |
+| `HISTORY_RETENTION_DAYS` | `365`                       | giorni di storico prezzi conservati                             |
+| `MAX_TRACKED_PER_CHAT`   | `25`                        | limite di prodotti tracciabili per chat                         |
+| `BYPARR_URL`             | `http://192.168.1.234:8191` | URL del servizio Byparr                                         |
+| `BYPARR_TIMEOUT`         | `60`                        | timeout delle richieste Byparr in secondi                       |
+| `BYPARR_MAX_PAGES`       | `5`                         | numero massimo di pagine Immobiliare.it                         |
+| `AUTHORIZED_USER_IDS`    | vuoto                       | user ID Telegram autorizzati separati da virgola; vuoto = tutti |
 
 ## Docker
 

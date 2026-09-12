@@ -7,6 +7,14 @@ class ScrapeResult:
     price: float
     currency: str
 
+
+@dataclass
+class House:
+    id: str
+    price: float
+    location: str
+
+
 @dataclass
 class Product:
     id: int

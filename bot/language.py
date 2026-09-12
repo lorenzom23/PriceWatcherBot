@@ -5,7 +5,7 @@ MESSAGES = {
         "welcome": (
             "Ciao {name}! 👋\n\n"
             "Monitoro i prezzi dei prodotti e ti avviso quando scendono.\n"
-            "⚠️ Per ora funziono solo con link Amazon.\n\n"
+            "⚠️ Per ora funziono solo con link Amazon e Immobiliare. \n\n"
             "📄 Comandi disponibili:\n"
             "/track <url> [prezzo] — aggiunge un prodotto (soglia opzionale)\n"
             "/list — mostra i prodotti che segui\n"
@@ -14,13 +14,19 @@ MESSAGES = {
             "/set_target <id> <prezzo> — imposta/aggiorna la soglia di un prodotto\n"
             "/reset_target <id> — rimuove la soglia di un prodotto"
         ),
-        "track_ask_url": "Manda il link Amazon del prodotto da monitorare. (/cancel per annullare)",
-        "track_unsupported": "Per ora seguo solo link Amazon. 🙈",
+        "track_ask_url": "Manda il link Amazon o Immobiliare del prodotto da monitorare. (/cancel per annullare)",
+        "track_unsupported": "Per ora seguo solo link Amazon e Immobiliare. 🙈",
         "track_ok": "✅ Ora seguo «{name}» a {price}{currency}. Ti avviso quando scende!",
         "track_ok_target": "✅ Ora seguo «{name}» a {price}{currency}. Ti avviso quando scende sotto {target}{currency}!",
-        "track_error": "😕 Non riesco a leggere il prezzo da questo link",
+        "track_error": "😕 Non riesco a recuperare le informazioni da questo link. Assicurati che il link sia corretto e riprova.",
         "track_bad_target": "La soglia dev'essere un numero positivo. Esempio: /track <link> 130",
         "track_found": "✅ Trovato «{name}» a {price}{currency}. Manda la soglia (es. 130) sotto cui avvisarti, oppure /skip per seguirlo senza soglia. (/cancel per annullare)",
+        "track_houses_ok": "✅ Ricerca registrata: trovate {count} case. Ti avviserò per nuove case e ribassi.",
+        "track_houses_existing": "La ricerca è già monitorata ({count} case registrate).",
+        "tracked_searches": "Ricerche Immobiliare.it monitorate:",
+        "untrack_search_ok": "✅ Ricerca Immobiliare.it rimossa.",
+        "new_house": "🏠 Nuova casa trovata a {location}: {price}€\n{url}",
+        "house_price_drop": "📉 Prezzo sceso a {location}: da {old}€ a {new}€\n{url}",
         "track_limit": "⚠️ Hai raggiunto il limite di {max} prodotti seguiti: rimuovine qualcuno con /untrack.",
         "display_tracked": "Ecco la lista dei prodotti seguiti:\n{items}",
         "last_price": "ultimo prezzo",
@@ -52,7 +58,7 @@ MESSAGES = {
         "welcome": (
             "Hi {name}! 👋\n\n"
             "I track product prices and alert you when they drop.\n"
-            "⚠️ For now I only work with Amazon links.\n\n"
+            "⚠️ For now I only work with Amazon and Immobiliare links.\n\n"
             "📄 Available commands:\n"
             "/track <url> [price] — add a product (optional price threshold)\n"
             "/list — show the products you follow\n"
@@ -61,13 +67,19 @@ MESSAGES = {
             "/set_target <id> <price> — set/update a product's target price\n"
             "/reset_target <id> — remove a product's target price"
         ),
-        "track_ask_url": "Send the Amazon link of the product to track. (/cancel to abort)",
-        "track_unsupported": "For now I only track Amazon links. 🙈",
+        "track_ask_url": "Send the Amazon or Immobiliare link of the product to track. (/cancel to abort)",
+        "track_unsupported": "For now I only track Amazon and Immobiliare links. 🙈",
         "track_ok": "✅ Now tracking «{name}» at {price}{currency}. I'll let you know when it drops!",
         "track_ok_target": "✅ Now tracking «{name}» at {price}{currency}. I'll alert you when it drops below {target}{currency}!",
-        "track_error": "😕 I couldn't read the price from this link",
+        "track_error": "😕 I couldn't retrieve information from this link. Make sure the link is correct and try again.",
         "track_bad_target": "The threshold must be a positive number. Example: /track <link> 130",
         "track_found": "✅ Found «{name}» at {price}{currency}. Send the target price (e.g. 130) to be alerted below it, or /skip to track it with no threshold. (/cancel to abort)",
+        "track_houses_ok": "✅ Search registered: found {count} properties. I'll alert you about new properties and price drops.",
+        "track_houses_existing": "This search is already tracked ({count} properties saved).",
+        "tracked_searches": "Tracked Immobiliare.it searches:",
+        "untrack_search_ok": "✅ Immobiliare.it search removed.",
+        "new_house": "🏠 New property found in {location}: €{price}\n{url}",
+        "house_price_drop": "📉 Price dropped in {location}: from €{old} to €{new}\n{url}",
         "track_limit": "⚠️ You've reached the limit of {max} tracked products: remove some with /untrack.",
         "display_tracked": "Here are the products you follow:\n{items}",
         "last_price": "last price",
