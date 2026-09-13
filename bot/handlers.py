@@ -46,6 +46,10 @@ def _format_tracked_list(res) -> str:
     return "\n".join(f"[{seq}] {name[:40]}" for seq, _, name, _ in res)
 
 
+def _is_list_of_houses(result) -> bool:
+    return isinstance(result, list) and all(isinstance(house, House) for house in result)
+
+
 async def cancel(update, context):
     lang = update.effective_user.language_code
     context.user_data.clear()
@@ -113,7 +117,7 @@ async def _fetch_product(url):
 
 async def _save_tracking(update, chat_id, url, result, target_price, lang):
     """Ultimo passo comune: salva prodotto/prezzo/sottoscrizione e conferma all'utente."""
-    if isinstance(result, list[House]):
+    if _is_list_of_houses(result):
         existing = get_houses(chat_id, url)
         if not existing:
             add_houses(chat_id, url, result)
@@ -182,7 +186,7 @@ async def track_receive_url(update, context):
         await update.message.reply_text(translate(err, lang))
         return WAITING_URL if err == "track_error" else ConversationHandler.END
 
-    if isinstance(result, list[House]):
+    if _is_list_of_houses(result):
         await _save_tracking(update, update.effective_chat.id, url, result, None, lang)
         return ConversationHandler.END
 
@@ -229,20 +233,28 @@ async def list_tracked(update, context):
     lang = update.effective_user.language_code
     chat_id = update.effective_chat.id
     res = get_subscriptions(chat_id)
+    house_searches = get_house_searches_for_chat(chat_id)
 
-    if not res:
+    if not res and not house_searches:
         await update.message.reply_text(translate("empty_list", lang))
         return
-
-    # nome accorciato + ultimo prezzo (+ soglia se impostata); col cap di prodotti sta nei 4096 char
-    last_label = translate("last_price", lang)
-    target_label = translate("target", lang)
-    text = "\n".join(
-        f"[{seq}] {p_name[:40]} — {last_label}: {get_last_price(pid)}€"
-        + (f" ({target_label}: {target}€)" if target is not None else "")
-        for seq, pid, p_name, target in res
-    )
-
+    text = ''
+    if res:
+        # nome accorciato + ultimo prezzo (+ soglia se impostata); col cap di prodotti sta nei 4096 char
+        last_label = translate("last_price", lang)
+        target_label = translate("target", lang)
+        text = "\n".join(
+            f"[{seq}] {p_name[:40]} — {last_label}: {get_last_price(pid)}€"
+            + (f" ({target_label}: {target}€)" if target is not None else "")
+            for seq, pid, p_name, target in res
+        )
+    if house_searches:
+        sequence = len(res) + 1
+        house_text = "\n".join(
+            f"[{count}] {house_link[0]}"
+            for count, house_link in enumerate(house_searches, start=sequence)
+        )
+        text += f"\n{house_text}"
     await update.message.reply_text(translate("display_tracked", lang, items=text))
 
 
