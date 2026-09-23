@@ -25,6 +25,7 @@ class ImmobiliareScraper(Scraper):
         return hostname == "immobiliare.it" or hostname.endswith(".immobiliare.it")
 
     def fetch(self, url: str) -> list[House]:
+        print(f"Fetching Immobiliare.it URL: {url}")
         if not self.can_handle(url):
             raise ValueError(f"URL non supportato: {url}")
         page_url = url
@@ -32,6 +33,7 @@ class ImmobiliareScraper(Scraper):
         last_page = False
         i = 1
         while not last_page:
+            print(f"Fetching page {i}: {page_url}")
             response = requests.post(
                 url=f"{PROXY_URL}:{PROXY_PORT}/v1",
                 json={"cmd": "request.get", "url": page_url, "maxTimeout": PROXY_TIMEOUT},
@@ -49,7 +51,10 @@ class ImmobiliareScraper(Scraper):
                 last_page = True
             else:
                 page_url = next_link
-                time.sleep(5)
+                # time.sleep(5)
+        if not houses:
+            raise ValueError("Nessuna casa trovata")
+        print(f"Finito fetch di Immobiliare.it: {len(houses)} case trovate")
         return houses
 
     def _find_next_page_link(self, html: str) -> str | None:
@@ -62,13 +67,13 @@ class ImmobiliareScraper(Scraper):
     def _parse_houses(self, html: str) -> list[House]:
         soup = BeautifulSoup(html, "lxml")
         houses = []
-        listing_items = soup.select("ul.Results_results__oa8Y6 > li.ListItem_item__sugJm")
+        listing_items = soup.select("ul[class*='Results_results__'] > li[class*='ListItem_item__']")
         if listing_items:
             for item in listing_items:
                 house_id = item.get("id")
-                price_element = item.select_one("div.Price_price__kHY5L span")
+                price_element = item.select_one("div[class*='Price_price__'] span")
                 price = self._extract_price(price_element.get_text(" ", strip=True)) if price_element else None
-                title_element = item.select_one("a.Title_title__kPgMu")
+                title_element = item.select_one("a[class*='Title_title__']")
                 title = title_element.get_text(" ", strip=True) if title_element else None
                 if house_id is None or title is None or price is None:
                     print(f"Annuncio incompleto: id={house_id}, title={title}, price={price}")
