@@ -46,6 +46,34 @@ def _format_tracked_list(res) -> str:
     return "\n".join(f"[{seq}] {name[:40]}" for seq, _, name, _ in res)
 
 
+def _format_tracked_build_list(tracked_list) -> str:
+    return "\n".join(
+        f"[{item['sequence']}] {item['description']}"
+        for item in tracked_list
+    )
+
+
+def _build_tracked_list(res, house_searches) -> list[dict]:
+    tracked_list = [
+        {
+            "sequence": sequence,
+            "description": name,
+            "id": prod_id,
+        }
+        for sequence, prod_id, name, _ in res
+    ]
+    first_house_id = max((item["sequence"] for item in tracked_list), default=0) + 1
+    tracked_list.extend(
+        {
+            "sequence": sequence,
+            "description": house_link[0],
+            'id': None
+        }
+        for sequence, house_link in enumerate(house_searches, start=first_house_id)
+    )
+    return tracked_list
+
+
 def _is_list_of_houses(result) -> bool:
     return isinstance(result, list) and all(isinstance(house, House) for house in result)
 
@@ -249,7 +277,7 @@ async def list_tracked(update, context):
             for seq, pid, p_name, target in res
         )
     if house_searches:
-        sequence = len(res) + 1
+        sequence = max((item[0] for item in res), default=0) + 1
         house_text = "\n".join(
             f"[{count}] {house_link[0]}"
             for count, house_link in enumerate(house_searches, start=sequence)
@@ -258,26 +286,32 @@ async def list_tracked(update, context):
     await update.message.reply_text(translate("display_tracked", lang, items=text))
 
 
-def _do_untrack(chat_id, lang, untrack_id) -> str:
-    product_id = next((pid for seq, pid, _, _ in get_subscriptions(chat_id) if seq == untrack_id), None)
-    if product_id is None:
-        return translate("product_not_tracked", lang, id=untrack_id)
+def _do_untrack(chat_id, untrack_id, tracked_list) -> str:
+    item_to_untrack = next((item for item in tracked_list if item["sequence"] == untrack_id), None)
+    if item_to_untrack is None:
+        return "id_error"
 
-    remove_subscription(chat_id, product_id)
-    return translate("untrack_ok", lang, id=untrack_id)
+    if item_to_untrack["id"] is None:
+        remove_house_search(chat_id, untrack_id)
+    else:
+        remove_subscription(chat_id, item_to_untrack["id"])
+    return None
 
 
 async def untrack(update, context):
     lang = update.effective_user.language_code
     chat_id = update.effective_chat.id
     res = get_subscriptions(chat_id)
+    house_searches = get_house_searches_for_chat(chat_id)
 
-    if not res:
+    if not res and not house_searches:
         await update.message.reply_text(translate("empty_list", lang))
         return ConversationHandler.END
 
+    tracked_list = _build_tracked_list(res, house_searches)
     if not context.args:
-        await update.message.reply_text(translate("missing_id", lang, items=_format_tracked_list(res)))
+        context.user_data["tracked_list"] = tracked_list
+        await update.message.reply_text(translate("missing_id", lang, items=_format_tracked_build_list(tracked_list)))
         return SELECT_UNTRACK_ID
 
     try:
@@ -285,22 +319,29 @@ async def untrack(update, context):
     except ValueError:
         await update.message.reply_text(translate("id_error", lang))
         return ConversationHandler.END
-
-    await update.message.reply_text(_do_untrack(chat_id, lang, untrack_id))
+    err = _do_untrack(chat_id, untrack_id, tracked_list)
+    if err:
+        await update.message.reply_text(translate(err, lang))
+        return ConversationHandler.END
+    await update.message.reply_text(translate("untrack_ok", lang, id=untrack_id))
     return ConversationHandler.END
 
 
 async def untrack_receive_id(update, context):
     lang = update.effective_user.language_code
     chat_id = update.effective_chat.id
-
     try:
-        untrack_id = int(update.message.text)
+        untrack_id = int(update.message.text.strip())
     except ValueError:
         await update.message.reply_text(translate("id_error", lang))
         return SELECT_UNTRACK_ID  # ridomanda
 
-    await update.message.reply_text(_do_untrack(chat_id, lang, untrack_id))
+    tracked_list = context.user_data.pop("tracked_list", None)
+    err = _do_untrack(chat_id, untrack_id, tracked_list)
+    if err:
+        await update.message.reply_text(translate(err, lang))
+    else:
+        await update.message.reply_text(translate("untrack_ok", lang, id=untrack_id))
     return ConversationHandler.END
 
 
