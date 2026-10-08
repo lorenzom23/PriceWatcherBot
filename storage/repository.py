@@ -1,6 +1,7 @@
 from contextlib import contextmanager
 
 from storage.database import get_connection
+from core.models import House
 
 
 @contextmanager
@@ -191,7 +192,7 @@ def get_house_searches_for_chat(chat_id) -> list:
                                  WHERE chat_id = ? ORDER BY search_url""", (chat_id,)).fetchall()
 
 
-def get_houses(chat_id, search_url) -> list:
+def get_houses(chat_id, search_url) -> list[House]:
     """Return houses saved for one user's search."""
     with _cursor() as cursor:
         return cursor.execute("""SELECT id, price, location FROM Houses
@@ -199,7 +200,12 @@ def get_houses(chat_id, search_url) -> list:
                               (chat_id, search_url)).fetchall()
 
 
-def add_houses(chat_id, search_url, houses):
+def add_house(chat_id, search_url, house: House):
+    """Insert a single house into the snapshot."""
+    add_houses(chat_id, search_url, [house])
+
+
+def add_houses(chat_id, search_url, houses: list[House]):
     """Insert the initial search snapshot without replacing existing houses."""
     with _cursor(commit=True) as cursor:
         cursor.executemany("""INSERT OR IGNORE INTO Houses
@@ -209,28 +215,15 @@ def add_houses(chat_id, search_url, houses):
                             for house in houses])
 
 
-def update_house_snapshot(chat_id, search_url, houses) -> list:
-    """Insert new houses and return (kind, house, old_price) changes."""
-    changes = []
+def upsert_houses(chat_id, search_url, houses: list[House]):
+    """Insert or update houses in a search snapshot."""
     with _cursor(commit=True) as cursor:
-        for house in houses:
-            row = cursor.execute("""SELECT price FROM Houses
-                                   WHERE id = ? AND chat_id = ? AND search_url = ?""",
-                                 (house.id, chat_id, search_url)).fetchone()
-            if row is None:
-                cursor.execute("""INSERT INTO Houses
-                                 (id, chat_id, search_url, price, location)
-                                 VALUES (?, ?, ?, ?, ?)""",
-                               (house.id, chat_id, search_url, house.price, house.location))
-                changes.append(("new", house, None))
-            else:
-                old_price = row[0]
-                cursor.execute("""UPDATE Houses SET price = ?, location = ?
-                                 WHERE id = ? AND chat_id = ? AND search_url = ?""",
-                               (house.price, house.location, house.id, chat_id, search_url))
-                if house.price < old_price:
-                    changes.append(("price_drop", house, old_price))
-    return changes
+        cursor.executemany("""INSERT INTO Houses (id, chat_id, search_url, price, location)
+                             VALUES (?, ?, ?, ?, ?)
+                             ON CONFLICT(id, chat_id, search_url)
+                             DO UPDATE SET price = excluded.price""",
+                           [(house.id, chat_id, search_url, house.price, house.location)
+                            for house in houses])
 
 
 def remove_house_search(chat_id, search_url):

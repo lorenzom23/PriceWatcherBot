@@ -53,14 +53,14 @@ def _format_tracked_build_list(tracked_list) -> str:
     )
 
 
-def _build_tracked_list(res, house_searches) -> list[dict]:
+def _build_tracked_list(products, house_searches) -> list[dict]:
     tracked_list = [
         {
             "sequence": sequence,
             "description": name,
             "id": prod_id,
         }
-        for sequence, prod_id, name, _ in res
+        for sequence, prod_id, name, _ in products
     ]
     first_house_id = max((item["sequence"] for item in tracked_list), default=0) + 1
     tracked_list.extend(
@@ -260,24 +260,24 @@ async def track_receive_target(update, context):
 async def list_tracked(update, context):
     lang = update.effective_user.language_code
     chat_id = update.effective_chat.id
-    res = get_subscriptions(chat_id)
+    products = get_subscriptions(chat_id)
     house_searches = get_house_searches_for_chat(chat_id)
 
-    if not res and not house_searches:
+    if not products and not house_searches:
         await update.message.reply_text(translate("empty_list", lang))
         return
     text = ''
-    if res:
+    if products:
         # nome accorciato + ultimo prezzo (+ soglia se impostata); col cap di prodotti sta nei 4096 char
         last_label = translate("last_price", lang)
         target_label = translate("target", lang)
         text = "\n".join(
             f"[{seq}] {p_name[:40]} — {last_label}: {get_last_price(pid)}€"
             + (f" ({target_label}: {target}€)" if target is not None else "")
-            for seq, pid, p_name, target in res
+            for seq, pid, p_name, target in products
         )
     if house_searches:
-        sequence = max((item[0] for item in res), default=0) + 1
+        sequence = max((item[0] for item in products), default=0) + 1
         house_text = "\n".join(
             f"[{count}] {house_link[0]}"
             for count, house_link in enumerate(house_searches, start=sequence)
@@ -301,14 +301,14 @@ def _do_untrack(chat_id, untrack_id, tracked_list) -> str:
 async def untrack(update, context):
     lang = update.effective_user.language_code
     chat_id = update.effective_chat.id
-    res = get_subscriptions(chat_id)
+    products = get_subscriptions(chat_id)
     house_searches = get_house_searches_for_chat(chat_id)
 
-    if not res and not house_searches:
+    if not products and not house_searches:
         await update.message.reply_text(translate("empty_list", lang))
         return ConversationHandler.END
 
-    tracked_list = _build_tracked_list(res, house_searches)
+    tracked_list = _build_tracked_list(products, house_searches)
     if not context.args:
         context.user_data["tracked_list"] = tracked_list
         await update.message.reply_text(translate("missing_id", lang, items=_format_tracked_build_list(tracked_list)))

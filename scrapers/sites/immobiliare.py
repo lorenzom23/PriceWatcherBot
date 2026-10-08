@@ -51,7 +51,8 @@ class ImmobiliareScraper(Scraper):
                 last_page = True
             else:
                 page_url = next_link
-                # time.sleep(5)
+                time.sleep(5)
+            i += 1
         if not houses:
             raise ValueError("Nessuna casa trovata")
         print(f"Finito fetch di Immobiliare.it: {len(houses)} case trovate")

@@ -15,7 +15,7 @@ MAX_TRACKED_PER_CHAT = int(os.getenv("MAX_TRACKED_PER_CHAT", "25"))
 
 PROXY_URL = os.getenv("PROXY_URL", "192.168.1.234")
 PROXY_PORT = int(os.getenv("PROXY_PORT", "8191"))
-PROXY_TIMEOUT = int(os.getenv("PROXY_TIMEOUT", "60"))
+PROXY_TIMEOUT = int(os.getenv("PROXY_TIMEOUT", "180"))
 
 AUTHORIZED_USER_IDS = os.getenv("AUTHORIZED_USER_IDS", "")
 AUTH_USER_IDS = {
