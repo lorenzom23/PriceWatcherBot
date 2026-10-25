@@ -37,7 +37,7 @@ class ImmobiliareScraper(Scraper):
             response = requests.post(
                 url=f"{PROXY_URL}:{PROXY_PORT}/v1",
                 json={"cmd": "request.get", "url": page_url, "maxTimeout": PROXY_TIMEOUT},
-                timeout=PROXY_TIMEOUT + 10,
+                timeout=PROXY_TIMEOUT + 30,
             )
             response.raise_for_status()
             payload = response.json()

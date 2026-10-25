@@ -292,7 +292,7 @@ def _do_untrack(chat_id, untrack_id, tracked_list) -> str:
         return "id_error"
 
     if item_to_untrack["id"] is None:
-        remove_house_search(chat_id, untrack_id)
+        remove_house_search(chat_id, item_to_untrack["description"])
     else:
         remove_subscription(chat_id, item_to_untrack["id"])
     return None
@@ -346,6 +346,7 @@ async def untrack_receive_id(update, context):
 
 
 async def check_prices_job(context):
+    print("Running periodic check of tracked products")
     # check_all() does blocking network + DB I/O; run the whole batch off the event loop.
     # It runs in a single worker thread, so every SQLite connection stays thread-local.
     for message_key, chat_id, params in await asyncio.to_thread(check_all):
@@ -366,6 +367,7 @@ async def check_prices_job(context):
             # il prezzo nuovo è già in history, questo alert non verrà rigenerato:
             # perderne uno è inevitabile, perdere anche i successivi del giro no
             print(f"Alert perso per chat {chat_id}: {e}")
+    print("Finished periodic check of tracked products")
 
 
 def _do_show_history(chat_id, lang, history_id) -> str:
