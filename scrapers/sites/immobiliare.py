@@ -6,7 +6,7 @@ from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 from core.models import House
 from scrapers.base import Scraper
-from config import PROXY_PORT, PROXY_URL, PROXY_TIMEOUT
+from config import PROXY_PORT, PROXY_RESPONSE_TIMEOUT, PROXY_URL, PROXY_TIMEOUT
 
 LISTING_PATH = re.compile(r"^/annunci/(\d+)/?$")
 
@@ -37,7 +37,7 @@ class ImmobiliareScraper(Scraper):
             response = requests.post(
                 url=f"{PROXY_URL}:{PROXY_PORT}/v1",
                 json={"cmd": "request.get", "url": page_url, "maxTimeout": PROXY_TIMEOUT},
-                timeout=PROXY_TIMEOUT + 30,
+                timeout=PROXY_RESPONSE_TIMEOUT,
             )
             response.raise_for_status()
             payload = response.json()

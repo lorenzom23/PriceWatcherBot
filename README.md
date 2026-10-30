@@ -65,6 +65,7 @@ Variabili d'ambiente (`.env`):
 | `MAX_TRACKED_PER_CHAT`   | `25`                        | limite di prodotti tracciabili per chat                         |
 | `BYPARR_URL`             | `http://192.168.1.234:8191` | URL del servizio Byparr                                         |
 | `BYPARR_TIMEOUT`         | `60`                        | timeout delle richieste Byparr in secondi                       |
+| `PROXY_RESPONSE_TIMEOUT` | `120`                       | timeout in secondi per la risposta HTTP di Byparr               |
 | `BYPARR_MAX_PAGES`       | `5`                         | numero massimo di pagine Immobiliare.it                         |
 | `AUTHORIZED_USER_IDS`    | vuoto                       | user ID Telegram autorizzati separati da virgola; vuoto = tutti |
 
