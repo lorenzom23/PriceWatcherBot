@@ -1,5 +1,6 @@
 import asyncio
 from datetime import datetime
+from enum import IntEnum
 from urllib.parse import urlparse
 
 from telegram.error import Forbidden, RetryAfter, TelegramError
@@ -18,13 +19,16 @@ from storage.repository import (
     get_house_searches_for_chat, remove_house_search
 )
 
-SELECT_ID = 1
-WAITING_URL = 2
-WAITING_TARGET = 3
-SELECT_UNTRACK_ID = 4
-WAITING_TARGET_ID = 5
-WAITING_TARGET_PRICE = 6
-SELECT_RESET_TARGET_ID = 7
+
+class ConversationState(IntEnum):
+    SELECT_ID = 1
+    WAITING_URL = 2
+    WAITING_TARGET = 3
+    SELECT_UNTRACK_ID = 4
+    WAITING_TARGET_ID = 5
+    WAITING_TARGET_PRICE = 6
+    SELECT_RESET_TARGET_ID = 7
+
 
 authorized_users = (
     filters.ALL
@@ -103,7 +107,7 @@ async def show_history(update, context):
 
     if not context.args:
         await update.message.reply_text(translate("missing_id", lang, items=_format_tracked_list(res)))
-        return SELECT_ID
+        return ConversationState.SELECT_ID
 
     try:
         history_id = int(context.args[0])
@@ -122,7 +126,7 @@ async def show_history_receive_id(update, context):
         history_id = int(update.message.text)
     except ValueError:
         await update.message.reply_text(translate("id_error", lang))
-        return SELECT_ID  # ridomanda
+        return ConversationState.SELECT_ID  # ridomanda
 
     await update.message.reply_text(_do_show_history(chat_id, lang, history_id))
     return ConversationHandler.END
@@ -184,7 +188,7 @@ async def track(update, context):
 
     if not context.args:
         await update.message.reply_text(translate("track_ask_url", lang))
-        return WAITING_URL
+        return ConversationState.WAITING_URL
 
     url = context.args[0]
 
@@ -199,7 +203,7 @@ async def track(update, context):
     result, err = await _fetch_product(url)
     if result is None:
         await update.message.reply_text(translate(err, lang))
-        return WAITING_URL if err == "track_error" else ConversationHandler.END
+        return ConversationState.WAITING_URL if err == "track_error" else ConversationHandler.END
 
     await _save_tracking(update, chat_id, url, result, target_price, lang)
     return ConversationHandler.END
@@ -212,7 +216,7 @@ async def track_receive_url(update, context):
     result, err = await _fetch_product(url)
     if result is None:
         await update.message.reply_text(translate(err, lang))
-        return WAITING_URL if err == "track_error" else ConversationHandler.END
+        return ConversationState.WAITING_URL if err == "track_error" else ConversationHandler.END
 
     if _is_list_of_houses(result):
         await _save_tracking(update, update.effective_chat.id, url, result, None, lang)
@@ -223,7 +227,7 @@ async def track_receive_url(update, context):
     await update.message.reply_text(
         translate("track_found", lang, name=result.name, price=result.price, currency=result.currency)
     )
-    return WAITING_TARGET
+    return ConversationState.WAITING_TARGET
 
 
 async def track_skip_target(update, context):
@@ -246,7 +250,7 @@ async def track_receive_target(update, context):
         target_price = _parse_target(update.message.text)
     except ValueError:
         await update.message.reply_text(translate("track_bad_target", lang))
-        return WAITING_TARGET  # ridomanda la soglia
+        return ConversationState.WAITING_TARGET  # ridomanda la soglia
 
     url = context.user_data.pop("track_url", None)
     result = context.user_data.pop("track_result", None)
@@ -312,7 +316,7 @@ async def untrack(update, context):
     if not context.args:
         context.user_data["tracked_list"] = tracked_list
         await update.message.reply_text(translate("missing_id", lang, items=_format_tracked_build_list(tracked_list)))
-        return SELECT_UNTRACK_ID
+        return ConversationState.SELECT_UNTRACK_ID
 
     try:
         untrack_id = int(context.args[0])
@@ -334,7 +338,7 @@ async def untrack_receive_id(update, context):
         untrack_id = int(update.message.text.strip())
     except ValueError:
         await update.message.reply_text(translate("id_error", lang))
-        return SELECT_UNTRACK_ID  # ridomanda
+        return ConversationState.SELECT_UNTRACK_ID  # ridomanda
 
     tracked_list = context.user_data.pop("tracked_list", None)
     err = _do_untrack(chat_id, untrack_id, tracked_list)
@@ -418,7 +422,7 @@ async def reset_target(update, context):
 
     if not context.args:
         await update.message.reply_text(translate("missing_id", lang, items=_format_tracked_list(res)))
-        return SELECT_RESET_TARGET_ID
+        return ConversationState.SELECT_RESET_TARGET_ID
 
     try:
         target_id = int(context.args[0])
@@ -438,7 +442,7 @@ async def reset_target_receive_id(update, context):
         target_id = int(update.message.text)
     except ValueError:
         await update.message.reply_text(translate("id_error", lang))
-        return SELECT_RESET_TARGET_ID  # ridomanda
+        return ConversationState.SELECT_RESET_TARGET_ID  # ridomanda
 
     await update.message.reply_text(_do_reset_target(chat_id, lang, target_id))
     return ConversationHandler.END
@@ -455,7 +459,7 @@ async def set_target(update, context):
 
     if not context.args:
         await update.message.reply_text(translate("missing_id", lang, items=_format_tracked_list(res)))
-        return WAITING_TARGET_ID
+        return ConversationState.WAITING_TARGET_ID
 
     try:
         target_id = int(context.args[0])
@@ -474,7 +478,7 @@ async def set_target(update, context):
         context.user_data["target_product_id"] = product_id
         context.user_data["target_product_name"] = name
         await update.message.reply_text(translate("ask_target_price", lang))
-        return WAITING_TARGET_PRICE
+        return ConversationState.WAITING_TARGET_PRICE
 
     try:
         new_target = _parse_target(context.args[1])
@@ -495,7 +499,7 @@ async def set_target_receive_id(update, context):
         target_id = int(update.message.text)
     except ValueError:
         await update.message.reply_text(translate("id_error", lang))
-        return WAITING_TARGET_ID  # ridomanda
+        return ConversationState.WAITING_TARGET_ID  # ridomanda
 
     match = next(((pid, name) for seq, pid, name, _ in get_subscriptions(chat_id) if seq == target_id), None)
     if match is None:
@@ -506,7 +510,7 @@ async def set_target_receive_id(update, context):
     context.user_data["target_product_id"] = product_id
     context.user_data["target_product_name"] = name
     await update.message.reply_text(translate("ask_target_price", lang))
-    return WAITING_TARGET_PRICE
+    return ConversationState.WAITING_TARGET_PRICE
 
 
 async def set_target_receive_price(update, context):
@@ -517,7 +521,7 @@ async def set_target_receive_price(update, context):
         new_target = _parse_target(update.message.text)
     except ValueError:
         await update.message.reply_text(translate("track_bad_target", lang))
-        return WAITING_TARGET_PRICE  # ridomanda
+        return ConversationState.WAITING_TARGET_PRICE  # ridomanda
 
     product_id = context.user_data.pop("target_product_id", None)
     name = context.user_data.pop("target_product_name", None)
@@ -538,16 +542,16 @@ conversation_handler = ConversationHandler(
         CommandHandler("reset_target", reset_target, filters=authorized_users),
     ],
     states={
-        SELECT_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND & authorized_users, show_history_receive_id)],
-        WAITING_URL: [MessageHandler(filters.TEXT & ~filters.COMMAND & authorized_users, track_receive_url)],
-        WAITING_TARGET: [
+        ConversationState.SELECT_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND & authorized_users, show_history_receive_id)],
+        ConversationState.WAITING_URL: [MessageHandler(filters.TEXT & ~filters.COMMAND & authorized_users, track_receive_url)],
+        ConversationState.WAITING_TARGET: [
             CommandHandler("skip", track_skip_target),
             MessageHandler(filters.TEXT & ~filters.COMMAND & authorized_users, track_receive_target),
         ],
-        SELECT_UNTRACK_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND & authorized_users, untrack_receive_id)],
-        WAITING_TARGET_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND & authorized_users, set_target_receive_id)],
-        WAITING_TARGET_PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND & authorized_users, set_target_receive_price)],
-        SELECT_RESET_TARGET_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND & authorized_users, reset_target_receive_id)],
+        ConversationState.SELECT_UNTRACK_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND & authorized_users, untrack_receive_id)],
+        ConversationState.WAITING_TARGET_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND & authorized_users, set_target_receive_id)],
+        ConversationState.WAITING_TARGET_PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND & authorized_users, set_target_receive_price)],
+        ConversationState.SELECT_RESET_TARGET_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND & authorized_users, reset_target_receive_id)],
         ConversationHandler.TIMEOUT: [MessageHandler(filters.ALL, cancel)],
     },
     fallbacks=[
