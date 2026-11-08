@@ -147,16 +147,14 @@ async def _fetch_product(url):
         return None, err
 
 
-async def _save_tracking(update, chat_id, url, result, target_price, lang):
-    """Ultimo passo comune: salva prodotto/prezzo/sottoscrizione e conferma all'utente."""
+def _save_tracking(chat_id, url, result, target_price) -> tuple[bool, int] | None:
+    """Ultimo passo comune: salva prodotto/prezzo/sottoscrizione"""
     if _is_list_of_houses(result):
         existing = get_houses(chat_id, url)
         if not existing:
             add_houses(chat_id, url, result)
-            await update.message.reply_text(translate("track_houses_ok", lang, count=len(result)))
-        else:
-            await update.message.reply_text(translate("track_houses_existing", lang, count=len(existing)))
-        return
+            return "track_houses_ok", len(result)
+        return "track_houses_existing", len(existing)
 
     website = urlparse(url).netloc
     product_id, created = add_product(url, result.name, website)
@@ -164,16 +162,7 @@ async def _save_tracking(update, chat_id, url, result, target_price, lang):
         # se il prodotto esiste già lo storico è alimentato dal job: niente punti doppi
         add_price(product_id, result.price, datetime.now().isoformat())
     add_subscription(chat_id, product_id, target_price)
-
-    if target_price is None:
-        await update.message.reply_text(
-            translate("track_ok", lang, name=result.name, price=result.price, currency=result.currency)
-        )
-    else:
-        await update.message.reply_text(
-            translate("track_ok_target", lang, name=result.name, price=result.price,
-                      target=target_price, currency=result.currency)
-        )
+    return None
 
 
 async def track(update, context):
@@ -205,7 +194,19 @@ async def track(update, context):
         await update.message.reply_text(translate(err, lang))
         return ConversationState.WAITING_URL if err == "track_error" else ConversationHandler.END
 
-    await _save_tracking(update, chat_id, url, result, target_price, lang)
+    house_tracking = _save_tracking(chat_id, url, result, target_price)
+    if house_tracking is not None:
+        msg, count = house_tracking
+        await update.message.reply_text(translate(msg, lang, count=count))
+    elif target_price is None:
+        await update.message.reply_text(
+            translate("track_ok", lang, name=result.name, price=result.price, currency=result.currency)
+        )
+    else:
+        await update.message.reply_text(
+            translate("track_ok_target", lang, name=result.name, price=result.price,
+                      target=target_price, currency=result.currency)
+        )
     return ConversationHandler.END
 
 
@@ -219,7 +220,11 @@ async def track_receive_url(update, context):
         return ConversationState.WAITING_URL if err == "track_error" else ConversationHandler.END
 
     if _is_list_of_houses(result):
-        await _save_tracking(update, update.effective_chat.id, url, result, None, lang)
+        house_tracking = _save_tracking(update.effective_chat.id, url, result, None)
+        if house_tracking is not None:
+            created, count = house_tracking
+            message = "track_houses_ok" if created else "track_houses_existing"
+            await update.message.reply_text(translate(message, lang, count=count))
         return ConversationHandler.END
 
     context.user_data["track_url"] = url
@@ -238,7 +243,10 @@ async def track_skip_target(update, context):
     if url is None or result is None:
         return ConversationHandler.END  # stato incoerente: niente da salvare
 
-    await _save_tracking(update, chat_id, url, result, None, lang)
+    _save_tracking(chat_id, url, result, None)
+    await update.message.reply_text(
+        translate("track_ok", lang, name=result.name, price=result.price, currency=result.currency)
+    )
     return ConversationHandler.END
 
 
@@ -257,7 +265,11 @@ async def track_receive_target(update, context):
     if url is None or result is None:
         return ConversationHandler.END
 
-    await _save_tracking(update, chat_id, url, result, target_price, lang)
+    _save_tracking(chat_id, url, result, target_price)
+    await update.message.reply_text(
+        translate("track_ok_target", lang, name=result.name, price=result.price,
+                  target=target_price, currency=result.currency)
+    )
     return ConversationHandler.END
 
 
