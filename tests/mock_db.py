@@ -12,7 +12,7 @@ from storage.repository import (
 
 
 DATA_MOCKED = {
-    "chat_id": 3,
+    "chat_id": 19031998,
     "language": "it",
     "amazon": [
         {
@@ -60,7 +60,7 @@ DATA_MOCKED = {
 }
 
 
-def setup_db(tmp_path, monkeypatch):
+def setup_db(monkeypatch, tmp_path):
     db_path = tmp_path / "test.db"
     monkeypatch.setattr(config, "DB_PATH", str(db_path))
     init_db()
@@ -68,7 +68,7 @@ def setup_db(tmp_path, monkeypatch):
 
 
 def setup_db_with_data(tmp_path, monkeypatch):
-    setup_db(tmp_path, monkeypatch)
+    setup_db(monkeypatch, tmp_path)
     chat_id = DATA_MOCKED["chat_id"]
     save_user(chat_id, DATA_MOCKED["language"])
     product_ids = []

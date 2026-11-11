@@ -4,7 +4,7 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 import config
-from scrapers.base import ScrapeBlocked
+from scrapers.base import ScrapeBlocked, Scraper
 from scrapers.sites.immobiliare import ImmobiliareScraper
 from scrapers.registry import get_scraper
 from storage.repository import (
@@ -19,7 +19,7 @@ FAILURE_ALERT_THRESHOLD = 3  # con un check ogni 6h ≈ 18h di fallimenti prima 
 MAX_PARALLEL_SITES = 4  # gira su un Raspberry Pi: pochi thread bastano
 
 
-def check_product(scraper, id, url) -> list:
+def check_product(scraper: Scraper, id, url) -> list:
     result = scraper.fetch(url)
     alerts = []
     if isinstance(scraper, ImmobiliareScraper):
@@ -85,7 +85,7 @@ def _record_failure(product_id, product_name, out):
                    for chat_id, _ in get_subscribers(product_id))
 
 
-def _check_batch(scraper, batch) -> list:
+def _check_batch(scraper: Scraper, batch) -> list:
     """Controlla in sequenza (con jitter) i prodotti di un singolo sito."""
     result = []
     for i, (id, product_url, product_name) in enumerate(batch):

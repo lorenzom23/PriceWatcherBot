@@ -13,6 +13,7 @@ from storage.repository import (
     get_user_language,
 )
 
+
 class DummyTelegramMessage:
     ''' Simulates the behavior of a Telegram message for testing purposes.
         It captures the text sent in replies for later inspection.'''
@@ -41,7 +42,7 @@ class DummyTelegramContext:
 
 
 def test_welcome_message(monkeypatch, tmp_path):
-    setup_db(tmp_path, monkeypatch)
+    setup_db(monkeypatch, tmp_path)
     user_name = "FigoMazzo"
     update = DummyTelegramUpdate(chat_id=5, first_name=user_name)
     context = DummyTelegramContext()
@@ -52,7 +53,7 @@ def test_welcome_message(monkeypatch, tmp_path):
 
 
 def test_immobiliare_track(monkeypatch, tmp_path):
-    setup_db(tmp_path, monkeypatch)
+    setup_db(monkeypatch, tmp_path)
     chat_id = 1
     update = DummyTelegramUpdate(chat_id=chat_id)
 
@@ -90,7 +91,7 @@ def test_immobiliare_track(monkeypatch, tmp_path):
 
 
 def test_immobiliare_track_receive_url(monkeypatch, tmp_path):
-    setup_db(tmp_path, monkeypatch)
+    setup_db(monkeypatch, tmp_path)
     chat_id = 2
     update = DummyTelegramUpdate(chat_id=chat_id)
 
@@ -121,7 +122,7 @@ def test_immobiliare_track_receive_url(monkeypatch, tmp_path):
 
 def test_immobiliare_untrack(monkeypatch, tmp_path):
     # empty db
-    setup_db(tmp_path, monkeypatch)
+    setup_db(monkeypatch, tmp_path)
     context = DummyTelegramContext()
     update = DummyTelegramUpdate(chat_id=DATA_MOCKED["chat_id"])
     result = asyncio.run(handlers.untrack(update, context))
