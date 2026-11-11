@@ -26,9 +26,11 @@ jobs:
 
       - name: Run tests
         run: uv run --locked pytest
+        env:
+          BOT_TOKEN: test-token
 
   build:
-    needs: test          # il build parte solo se i test passano
+    needs: test # il build parte solo se i test passano
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
