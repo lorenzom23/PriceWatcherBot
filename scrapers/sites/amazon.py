@@ -30,6 +30,7 @@ def _headers() -> dict:
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     }
 
+
 MAX_PAGE_BYTES = 8_000_000  # le pagine prodotto sono ~2-4MB: oltre è un'anomalia, non un prodotto
 FETCH_DEADLINE = 60  # tetto totale di download: il timeout di requests è solo tra-byte
 

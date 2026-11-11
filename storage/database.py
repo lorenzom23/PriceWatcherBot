@@ -79,5 +79,17 @@ def init_db() -> None:
 
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_price_history_product ON price_history (product_id)")
 
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS Houses (
+            chat_id INTEGER NOT NULL,
+            search_url TEXT NOT NULL,
+            id TEXT NOT NULL,
+            price REAL NOT NULL,
+            location TEXT NOT NULL,
+            PRIMARY KEY (id, chat_id, search_url)
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_houses_chat_search ON Houses (chat_id, search_url)")
+
     connection.commit()
     connection.close()

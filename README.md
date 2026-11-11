@@ -19,6 +19,8 @@ A Telegram bot that tracks the price of products from e-commerce sites and alert
 - `/reset_target <id>` — remove the threshold
 - `/cancel` — cancel an ongoing command
 
+The first `/track` for an Immobiliare.it search saves the listings found. Subsequent checks notify subscribers about new listings and price drops. `/untrack <search-url>` removes an Immobiliare.it search.
+
 ## Project structure
 
 ```
@@ -48,19 +50,31 @@ Python 3.12 · [python-telegram-bot](https://github.com/python-telegram-bot/pyth
 ## Setup
 
 ```bash
-pip install -r requirements.txt
-python main.py
+uv sync
+uv run python main.py
 ```
 
-Create a `.env` file in the project root with at least `BOT_TOKEN` (the rest have defaults):
+`uv.lock` pins the complete dependency tree. Use `uv sync` to create or update
+the local environment, and `uv run` to execute commands inside it.
 
-| Name | Default | Description |
-|---|---|---|
-| `BOT_TOKEN` | — | Telegram bot token (required) |
-| `DB_PATH` | `./data/prices.db` | SQLite database path |
-| `CHECK_INTERVAL_HOURS` | `6` | how often to recheck prices |
-| `HISTORY_RETENTION_DAYS` | `365` | days of price history kept |
-| `MAX_TRACKED_PER_CHAT` | `25` | max products trackable per chat |
+Create a `.env` file in the project root with the following variables:
+
+```dotenv
+BOT_TOKEN=your_telegram_bot_token
+```
+
+| Name                     | Default                | Description                                                    |
+| ------------------------ | ---------------------- | -------------------------------------------------------------- |
+| `BOT_TOKEN`              | —                      | Telegram bot token (required)                                  |
+| `DB_PATH`                | `./data/prices.db`     | SQLite database path                                           |
+| `CHECK_INTERVAL_HOURS`   | `6`                    | how often to recheck prices                                    |
+| `HISTORY_RETENTION_DAYS` | `365`                  | days of price history kept                                     |
+| `MAX_TRACKED_PER_CHAT`   | `25`                   | max products trackable per chat                                |
+| `PROXY_URL`              | `http://192.168.1.234` | Byparr service URL (without the port)                          |
+| `PROXY_PORT`             | `8191`                 | Byparr service port                                            |
+| `PROXY_TIMEOUT`          | `60`                   | Byparr request timeout in seconds                              |
+| `PROXY_RESPONSE_TIMEOUT` | `120`                  | timeout in seconds for Byparr's HTTP response                  |
+| `AUTHORIZED_USER_IDS`    | empty                  | comma-separated authorized Telegram user IDs; empty = everyone |
 
 ## Docker
 
@@ -68,14 +82,16 @@ Create a `.env` file in the project root with at least `BOT_TOKEN` (the rest hav
 docker compose up -d
 ```
 
-Uses the `ghcr.io/lorenzom23/pricewatcherbot:latest` image (or builds it locally), mounts `data/` as a persistent volume, and reads config from `.env`.
+Uses the g`ghcr.io/lorenzom23/pricewatcherbot:latest` image (or builds it locally), mounts `data/` as a persistent volume, and reads config from `.env`.
 
 ## CI/CD
 
-On every push to `main`, GitHub Actions builds an image and pushes it to GHCR. The bot runs on a Raspberry Pi, where Watchtower pulls updates automatically.
+On pull requests targeting `main`, GitHub Actions runs the tests.
+
+On every push to `main`, it also builds an image and pushes it to GHCR. The bot runs on a Raspberry Pi, where Watchtower pulls updates automatically.
 
 ## Tests
 
 ```bash
-pytest
+uv run pytest
 ```

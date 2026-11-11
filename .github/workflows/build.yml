@@ -3,6 +3,8 @@ name: Build and push image
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
   test:
@@ -16,14 +18,20 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+
       - name: Install dependencies
-        run: pip install -r requirements.txt pytest
+        run: uv sync --locked --group dev
 
       - name: Run tests
-        run: pytest
+        run: uv run --locked pytest
+        env:
+          BOT_TOKEN: test-token
 
   build:
-    needs: test          # il build parte solo se i test passano
+    needs: test # il build parte solo se i test passano
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read

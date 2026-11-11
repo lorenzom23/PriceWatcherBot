@@ -12,3 +12,15 @@ CHECK_INTERVAL_HOURS = int(os.getenv("CHECK_INTERVAL_HOURS", "6"))
 HISTORY_RETENTION_DAYS = int(os.getenv("HISTORY_RETENTION_DAYS", "365"))
 # cap per chat: senza, un singolo utente può gonfiare il DB e stallare il job per tutti
 MAX_TRACKED_PER_CHAT = int(os.getenv("MAX_TRACKED_PER_CHAT", "25"))
+
+PROXY_URL = os.getenv("PROXY_URL", "http://192.168.1.234")
+PROXY_PORT = int(os.getenv("PROXY_PORT", "8191"))
+PROXY_TIMEOUT = int(os.getenv("PROXY_TIMEOUT", "60"))
+PROXY_RESPONSE_TIMEOUT = int(os.getenv("PROXY_RESPONSE_TIMEOUT", str(PROXY_TIMEOUT + 60)))
+
+AUTHORIZED_USER_IDS = os.getenv("AUTHORIZED_USER_IDS", "")
+AUTH_USER_IDS = {
+    int(user_id.strip())
+    for user_id in AUTHORIZED_USER_IDS.split(",")
+    if user_id.strip()
+}

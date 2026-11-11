@@ -1,0 +1,157 @@
+import asyncio
+
+from telegram.ext import ConversationHandler
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
+
+from bot import handlers
+from bot.language import translate
+from core.models import House
+from mock_db import DATA_MOCKED, setup_db, setup_db_with_data
+from storage.repository import (
+    get_houses,
+    get_user_language,
+)
+
+
+class DummyTelegramMessage:
+    ''' Simulates the behavior of a Telegram message for testing purposes.
+        It captures the text sent in replies for later inspection.'''
+
+    def __init__(self):
+        self.reply_storage: list[str] = []
+
+    async def reply_text(self, text):
+        self.reply_storage.append(text)
+
+
+class DummyTelegramUpdate:
+    ''' Simulates the behavior of a Telegram update for testing purposes.
+        It contains a message and user information, and captures replies sent to the user.'''
+
+    def __init__(self, chat_id, lang="it", first_name="FigoMazzo"):
+        self.effective_chat = SimpleNamespace(id=chat_id)
+        self.effective_user = SimpleNamespace(language_code=lang, first_name=first_name)
+        self.message = DummyTelegramMessage()
+
+
+class DummyTelegramContext:
+    def __init__(self, args=None):
+        self.args = [] if args is None else args
+        self.user_data = {}
+
+
+def test_welcome_message(monkeypatch, tmp_path):
+    setup_db(monkeypatch, tmp_path)
+    user_name = "FigoMazzo"
+    update = DummyTelegramUpdate(chat_id=5, first_name=user_name)
+    context = DummyTelegramContext()
+    asyncio.run(handlers.start(update, context))
+    assert update.message.reply_storage[0] == translate("welcome", "it", name=user_name)
+    # check user is saved in the db
+    assert get_user_language(5) == "it"
+
+
+def test_immobiliare_track(monkeypatch, tmp_path):
+    setup_db(monkeypatch, tmp_path)
+    chat_id = 1
+    update = DummyTelegramUpdate(chat_id=chat_id)
+
+    # url not provided, should ask for it
+    context = DummyTelegramContext()
+    res = asyncio.run(handlers.track(update, context))
+    assert update.message.reply_storage[0] == translate("track_ask_url", "it")
+    assert res == handlers.ConversationState.WAITING_URL
+
+    # url provided but not supported
+    url = "https://www.succhi.it/search-list/?idContratto=1"
+    context = DummyTelegramContext(args=[url])
+    res = asyncio.run(handlers.track(update, context))
+    assert update.message.reply_storage[-1] == translate("track_unsupported", "it")
+    assert res == ConversationHandler.END
+
+    # url provided and supported, should fetch and save houses
+    search = DATA_MOCKED["immobiliare"][0]
+    url = search["search_url"]
+    context = DummyTelegramContext(args=[url])
+
+    fetch_mock = AsyncMock(return_value=search["houses"])
+    monkeypatch.setattr(handlers.asyncio, "to_thread", fetch_mock)
+    res = asyncio.run(handlers.track(update, context))
+    assert res == ConversationHandler.END
+    assert update.message.reply_storage[-1] == translate("track_houses_ok", "it", count=len(search["houses"]))
+    db_houses = [House(id, price, location) for id, price, location in get_houses(chat_id, url)]
+    assert db_houses == search["houses"]
+
+    # track twice the same url, should block it
+    res = asyncio.run(handlers.track(update, context))
+    assert res == ConversationHandler.END
+    assert update.message.reply_storage[-1] == translate("track_houses_existing",
+                                                         "it", count=len(search["houses"]))
+
+
+def test_immobiliare_track_receive_url(monkeypatch, tmp_path):
+    setup_db(monkeypatch, tmp_path)
+    chat_id = 2
+    update = DummyTelegramUpdate(chat_id=chat_id)
+
+    # url not supported
+    context = DummyTelegramContext()
+    update.message.text = "https://www.succhi.it/search-list/?idContratto=1"
+    result = asyncio.run(handlers.track_receive_url(update, context))
+    assert result == ConversationHandler.END
+    assert update.message.reply_storage[-1] == translate("track_unsupported", "it")
+
+    # url supported, should fetch and save houses
+    search = DATA_MOCKED["immobiliare"][0]
+    url = search["search_url"]
+    fetch_mock = AsyncMock(return_value=search["houses"])
+    monkeypatch.setattr(handlers.asyncio, "to_thread", fetch_mock)
+    update.message.text = url
+
+    result = asyncio.run(handlers.track_receive_url(update, context))
+
+    assert result == ConversationHandler.END
+    assert fetch_mock.await_count == 1
+    assert update.message.reply_storage[-1] == translate(
+        "track_houses_ok", "it", count=len(search["houses"])
+    )
+    db_houses = [House(id, price, location) for id, price, location in get_houses(chat_id, url)]
+    assert db_houses == search["houses"]
+
+
+def test_immobiliare_untrack(monkeypatch, tmp_path):
+    # empty db
+    setup_db(monkeypatch, tmp_path)
+    context = DummyTelegramContext()
+    update = DummyTelegramUpdate(chat_id=DATA_MOCKED["chat_id"])
+    result = asyncio.run(handlers.untrack(update, context))
+    assert result == ConversationHandler.END
+    assert update.message.reply_storage[-1] == translate("empty_list", "it")
+
+    # db with data
+    product_ids = setup_db_with_data(tmp_path, monkeypatch)
+
+    # no untrack id provided
+    result = asyncio.run(handlers.untrack(update, context))
+    assert result == handlers.ConversationState.SELECT_UNTRACK_ID
+
+    # untrack id provided, but wrong format
+    context = DummyTelegramContext(args=["abc"])
+    result = asyncio.run(handlers.untrack(update, context))
+    assert result == ConversationHandler.END
+    assert update.message.reply_storage[-1] == translate("id_error", "it")
+
+    # untrack id provided correctly but out of range
+    context = DummyTelegramContext(args=["999"])
+    result = asyncio.run(handlers.untrack(update, context))
+    assert result == ConversationHandler.END
+    assert update.message.reply_storage[-1] == translate("id_error", "it")
+
+   # untrack id provided correctly and in range
+    context = DummyTelegramContext(args=["4"])  # untrack the first Immobiliare search
+    result = asyncio.run(handlers.untrack(update, context))
+    assert result == ConversationHandler.END
+    assert update.message.reply_storage[-1] == translate("untrack_ok", "it", id=4)
+    houses = get_houses(DATA_MOCKED["chat_id"], DATA_MOCKED["immobiliare"][0]["search_url"])
+    assert houses == []

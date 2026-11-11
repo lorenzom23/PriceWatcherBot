@@ -1,6 +1,7 @@
 from contextlib import contextmanager
 
 from storage.database import get_connection
+from core.models import House
 
 
 @contextmanager
@@ -15,6 +16,8 @@ def _cursor(commit=False):
         connection.close()
 
 # products
+
+
 def add_product(url, name, website) -> tuple[int, bool]:
     """Add a product and returns (id, created)"""
     with _cursor(commit=True) as cursor:
@@ -23,11 +26,13 @@ def add_product(url, name, website) -> tuple[int, bool]:
         product_id = cursor.execute("SELECT id FROM products WHERE url = ?", (url,)).fetchone()
     return product_id[0], created
 
+
 def get_tracked_products() -> list:
     """Returns the products at least one user subscribes to"""
     with _cursor() as cursor:
         return cursor.execute("""SELECT id, url, name FROM products
                                  WHERE id IN (SELECT product_id FROM subscriptions)""").fetchall()
+
 
 def get_product_url(product_id) -> str | None:
     """Return the product's URL"""
@@ -35,10 +40,12 @@ def get_product_url(product_id) -> str | None:
         row = cursor.execute("SELECT url FROM products WHERE id = ?", (product_id,)).fetchone()
     return row[0] if row else None
 
+
 def update_product_name(product_id, name):
     """Refresh the display name from the latest scrape (listings get renamed)"""
     with _cursor(commit=True) as cursor:
         cursor.execute("UPDATE products SET name = ? WHERE id = ? AND name != ?", (name, product_id, name))
+
 
 def record_check_failure(product_id) -> int:
     """Increment and return the consecutive-failure counter"""
@@ -47,23 +54,28 @@ def record_check_failure(product_id) -> int:
         row = cursor.execute("SELECT failures FROM products WHERE id = ?", (product_id,)).fetchone()
     return row[0] if row else 0
 
+
 def reset_check_failures(product_id):
     """Zero the failure counter after a successful check"""
     with _cursor(commit=True) as cursor:
         cursor.execute("UPDATE products SET failures = 0 WHERE id = ? AND failures != 0", (product_id,))
 
 # price
+
+
 def add_price(product_id, price, timestamp):
     """Add a price"""
     with _cursor(commit=True) as cursor:
         cursor.execute("INSERT INTO price_history (product_id, price, timestamp) VALUES (?, ?, ?)",
                        (product_id, price, timestamp))
 
+
 def prune_history(cutoff_iso):
     """Delete the price points older than the ISO cutoff"""
     with _cursor(commit=True) as cursor:
         # i timestamp sono ISO-8601: il confronto lessicografico è quello cronologico
         cursor.execute("DELETE FROM price_history WHERE timestamp < ?", (cutoff_iso,))
+
 
 def get_last_price(product_id) -> float | None:
     """Get the last price of the passed product_id"""
@@ -72,6 +84,7 @@ def get_last_price(product_id) -> float | None:
                                (product_id,)).fetchone()
     return price[0] if price else None
 
+
 def get_history(product_id) -> list:
     """Returns all the prices"""
     with _cursor() as cursor:
@@ -79,7 +92,9 @@ def get_history(product_id) -> list:
                               (product_id,)).fetchall()
 
 # subs
-def add_subscription(chat_id, product_id, target_price = None):
+
+
+def add_subscription(chat_id, product_id, target_price=None):
     """Add a subscriber, assigning the next per-user progressive id"""
     with _cursor(commit=True) as cursor:
         # COALESCE: un re-track senza soglia non deve azzerare quella esistente.
@@ -93,11 +108,13 @@ def add_subscription(chat_id, product_id, target_price = None):
                           DO UPDATE SET target_price = COALESCE(excluded.target_price, target_price)""",
                        (chat_id, product_id, target_price, chat_id))
 
+
 def get_subscribers(product_id) -> list:
     """Get all the subscribers"""
     with _cursor() as cursor:
         return cursor.execute("SELECT chat_id, target_price FROM subscriptions WHERE product_id = ?",
                               (product_id,)).fetchall()
+
 
 def remove_subscription(chat_id, product_id):
     """Delete a subscriber from a product"""
@@ -106,16 +123,19 @@ def remove_subscription(chat_id, product_id):
                        (chat_id, product_id,))
         _delete_orphans(cursor)
 
+
 def remove_chat_subscriptions(chat_id):
     """Delete every subscription of a chat (e.g. the user blocked the bot)"""
     with _cursor(commit=True) as cursor:
         cursor.execute("DELETE FROM subscriptions WHERE chat_id = ?", (chat_id,))
         _delete_orphans(cursor)
 
+
 def _delete_orphans(cursor):
     """Drop products (and their history) nobody subscribes to anymore"""
     cursor.execute("DELETE FROM price_history WHERE product_id NOT IN (SELECT product_id FROM subscriptions)")
     cursor.execute("DELETE FROM products WHERE id NOT IN (SELECT product_id FROM subscriptions)")
+
 
 def get_subscriptions(chat_id) -> list:
     """Returns (user_seq, product_id, name, target_price) tuples, ordered by the per-user id"""
@@ -127,17 +147,21 @@ def get_subscriptions(chat_id) -> list:
                                  WHERE chat_id = ?
                                  ORDER BY subscriptions.user_seq""", (chat_id,)).fetchall()
 
+
 def change_target(chat_id, product_id, target):
     """Sets (or, if target is None, clears) the target price of a subscription"""
     with _cursor(commit=True) as cursor:
         cursor.execute("""UPDATE subscriptions SET target_price = ?
                           WHERE chat_id = ? AND product_id = ?""", (target, chat_id, product_id))
 
+
 def remove_target(chat_id, product_id):
     """Clear the target price of a subscription"""
     change_target(chat_id, product_id, None)
 
 # users
+
+
 def save_user(chat_id, language):
     """Insert or update the user's language"""
     with _cursor(commit=True) as cursor:
@@ -145,8 +169,65 @@ def save_user(chat_id, language):
                           ON CONFLICT(chat_id) DO UPDATE SET language = excluded.language""",
                        (chat_id, language))
 
+
 def get_user_language(chat_id) -> str | None:
     """Return the saved language of a user, or None"""
     with _cursor() as cursor:
         row = cursor.execute("SELECT language FROM users WHERE chat_id = ?", (chat_id,)).fetchone()
     return row[0] if row else None
+
+
+# Houses
+def get_house_searches() -> list:
+    """Return distinct (chat_id, search_url) pairs with at least one house."""
+    with _cursor() as cursor:
+        return cursor.execute("""SELECT DISTINCT chat_id, search_url
+                                 FROM Houses ORDER BY chat_id, search_url""").fetchall()
+
+
+def get_house_searches_for_chat(chat_id) -> list:
+    """Return distinct search URLs saved for one chat."""
+    with _cursor() as cursor:
+        return cursor.execute("""SELECT DISTINCT search_url FROM Houses
+                                 WHERE chat_id = ? ORDER BY search_url""", (chat_id,)).fetchall()
+
+
+def get_houses(chat_id, search_url) -> list[House]:
+    """Return houses saved for one user's search."""
+    with _cursor() as cursor:
+        return cursor.execute("""SELECT id, price, location FROM Houses
+                                 WHERE chat_id = ? AND search_url = ? ORDER BY id""",
+                              (chat_id, search_url)).fetchall()
+
+
+def add_house(chat_id, search_url, house: House):
+    """Insert a single house into the snapshot."""
+    add_houses(chat_id, search_url, [house])
+
+
+def add_houses(chat_id, search_url, houses: list[House]):
+    """Insert the initial search snapshot without replacing existing houses."""
+    with _cursor(commit=True) as cursor:
+        cursor.executemany("""INSERT OR IGNORE INTO Houses
+                             (id, chat_id, search_url, price, location)
+                             VALUES (?, ?, ?, ?, ?)""",
+                           [(house.id, chat_id, search_url, house.price, house.location)
+                            for house in houses])
+
+
+def upsert_houses(chat_id, search_url, houses: list[House]):
+    """Insert or update houses in a search snapshot."""
+    with _cursor(commit=True) as cursor:
+        cursor.executemany("""INSERT INTO Houses (id, chat_id, search_url, price, location)
+                             VALUES (?, ?, ?, ?, ?)
+                             ON CONFLICT(id, chat_id, search_url)
+                             DO UPDATE SET price = excluded.price""",
+                           [(house.id, chat_id, search_url, house.price, house.location)
+                            for house in houses])
+
+
+def remove_house_search(chat_id, search_url):
+    """Remove all houses belonging to one user's search."""
+    with _cursor(commit=True) as cursor:
+        cursor.execute("DELETE FROM Houses WHERE chat_id = ? AND search_url = ?",
+                       (chat_id, search_url))
