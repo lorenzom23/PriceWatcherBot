@@ -1,73 +1,80 @@
 # PriceWatcherBot
 
-Bot Telegram che tiene traccia del prezzo di prodotti online e avvisa gli utenti quando scende (sotto l'ultimo prezzo o sotto una soglia impostata da loro).
+A Telegram bot that tracks the price of products from e-commerce sites and alerts subscribers when the price drops — either below the last known price or below a custom threshold they set.
 
-## Come funziona
+## How it works
 
-- Ogni utente traccia URL di prodotto tramite comandi Telegram; il bot fa scraping della pagina e salva nome/prezzo su SQLite.
-- Un job periodico (`check_prices_job`, ogni `CHECK_INTERVAL_HOURS` ore) ricontrolla tutti i prodotti tracciati, uno scraper per sito, in parallelo tra siti e in sequenza (con jitter) dentro lo stesso sito per non farsi bloccare.
-- Se il prezzo scende sotto l'ultimo rilevato (o sotto la soglia impostata) manda un alert a tutti gli iscritti a quel prodotto.
-- Se un prodotto fallisce lo scraping per 3 controlli di fila, avvisa una volta sola che il tracking è rotto e continua a riprovare in silenzio.
+- Users track a product URL via Telegram commands; the bot scrapes the page and stores name/price in SQLite.
+- A periodic job rechecks every tracked product every `CHECK_INTERVAL_HOURS`.
+- If the price drops below the last recorded value (or below the user's target), subscribers get an alert.
+- If a product fails to scrape 3 times in a row, subscribers are notified once and the bot keeps retrying silently.
 
-## Comandi
+## Commands
 
-- `/track <url> [prezzo_soglia]` — inizia a tracciare un prodotto (soglia opzionale, altrimenti chiede via conversazione)
-- `/list` — elenco prodotti tracciati con ultimo prezzo
-- `/untrack <id>` — smette di tracciare un prodotto
-- `/show_history <id>` — storico prezzi e media
-- `/set_target <id> <prezzo>` — imposta/aggiorna la soglia di alert
-- `/reset_target <id>` — rimuove la soglia
-- `/cancel` — annulla una conversazione in corso
+- `/track <url> [target_price]` — start tracking a product
+- `/list` — list tracked products with their last known price
+- `/untrack <id>` — stop tracking a product
+- `/show_history <id>` — price history and average
+- `/set_target <id> <price>` — set or update the alert threshold
+- `/reset_target <id>` — remove the threshold
+- `/cancel` — cancel an ongoing command
 
-Il primo `/track` di una ricerca Immobiliare.it salva le case trovate. I controlli successivi notificano le case nuove e i ribassi. `/untrack <url-ricerca>` rimuove una ricerca Immobiliare.it.
+The first `/track` for an Immobiliare.it search saves the listings found. Subsequent checks notify subscribers about new listings and price drops. `/untrack <search-url>` removes an Immobiliare.it search.
 
-## Struttura del progetto
+## Project structure
 
 ```
-main.py               entry point: setup handler, comandi, job periodico
-config.py              variabili d'ambiente (token, DB, intervalli, limiti)
+main.py                entry point: handlers, bot commands, periodic job
+config.py              environment-based configuration
 bot/
-  handlers.py          comandi Telegram e ConversationHandler
-  language.py           traduzioni (it/en)
+  handlers.py          Telegram commands and conversation flows
+  language.py          translations (en/it)
 core/
-  models.py            dataclass di dominio (Product, PricePoint, ScrapeResult)
-  checker.py           logica del job periodico: batch per sito, alert, retry
+  models.py            domain dataclasses
+  checker.py           periodic price-check job
 scrapers/
-  base.py              interfaccia Scraper + eccezione ScrapeBlocked
-  registry.py           auto-discovery degli scraper in scrapers/sites
-  sites/amazon.py       scraper Amazon (con protezioni SSRF/anti-bot)
+  base.py              Scraper interface
+  registry.py          auto-discovers scrapers in scrapers/sites
+  sites/amazon.py       Amazon scraper
 storage/
-  database.py          schema SQLite e migrazioni
-  repository.py         query di accesso ai dati
+  database.py          SQLite schema
+  repository.py        data-access queries
 ```
 
-Aggiungere un sito nuovo = aggiungere una classe `Scraper` in `scrapers/sites/`: viene rilevata automaticamente.
+Adding a new site means adding one `Scraper` class under `scrapers/sites/` — it's picked up automatically.
+
+## Tech stack
+
+Python 3.12 · [python-telegram-bot](https://github.com/python-telegram-bot/python-telegram-bot) · SQLite · BeautifulSoup4/lxml · Docker · GitHub Actions
 
 ## Setup
 
 ```bash
 uv sync
-cp .env.example .env   # BOT_TOKEN obbligatorio
 uv run python main.py
 ```
 
 `uv.lock` pins the complete dependency tree. Use `uv sync` to create or update
 the local environment, and `uv run` to execute commands inside it.
 
-Variabili d'ambiente (`.env`):
+Create a `.env` file in the project root with the following variables:
 
-| Nome                     | Default                     | Descrizione                                                     |
-| ------------------------ | --------------------------- | --------------------------------------------------------------- |
-| `BOT_TOKEN`              | —                           | token del bot Telegram (obbligatorio)                           |
-| `DB_PATH`                | `./data/prices.db`          | percorso del database SQLite                                    |
-| `CHECK_INTERVAL_HOURS`   | `6`                         | ogni quante ore ricontrollare i prezzi                          |
-| `HISTORY_RETENTION_DAYS` | `365`                       | giorni di storico prezzi conservati                             |
-| `MAX_TRACKED_PER_CHAT`   | `25`                        | limite di prodotti tracciabili per chat                         |
-| `BYPARR_URL`             | `http://192.168.1.234:8191` | URL del servizio Byparr                                         |
-| `BYPARR_TIMEOUT`         | `60`                        | timeout delle richieste Byparr in secondi                       |
-| `PROXY_RESPONSE_TIMEOUT` | `120`                       | timeout in secondi per la risposta HTTP di Byparr               |
-| `BYPARR_MAX_PAGES`       | `5`                         | numero massimo di pagine Immobiliare.it                         |
-| `AUTHORIZED_USER_IDS`    | vuoto                       | user ID Telegram autorizzati separati da virgola; vuoto = tutti |
+```dotenv
+BOT_TOKEN=your_telegram_bot_token
+```
+
+| Name                     | Default                | Description                                                    |
+| ------------------------ | ---------------------- | -------------------------------------------------------------- |
+| `BOT_TOKEN`              | —                      | Telegram bot token (required)                                  |
+| `DB_PATH`                | `./data/prices.db`     | SQLite database path                                           |
+| `CHECK_INTERVAL_HOURS`   | `6`                    | how often to recheck prices                                    |
+| `HISTORY_RETENTION_DAYS` | `365`                  | days of price history kept                                     |
+| `MAX_TRACKED_PER_CHAT`   | `25`                   | max products trackable per chat                                |
+| `PROXY_URL`              | `http://192.168.1.234` | Byparr service URL (without the port)                          |
+| `PROXY_PORT`             | `8191`                 | Byparr service port                                            |
+| `PROXY_TIMEOUT`          | `60`                   | Byparr request timeout in seconds                              |
+| `PROXY_RESPONSE_TIMEOUT` | `120`                  | timeout in seconds for Byparr's HTTP response                  |
+| `AUTHORIZED_USER_IDS`    | empty                  | comma-separated authorized Telegram user IDs; empty = everyone |
 
 ## Docker
 
@@ -75,9 +82,15 @@ Variabili d'ambiente (`.env`):
 docker compose up -d
 ```
 
-Usa l'immagine `ghcr.io/lorenzom23/pricewatcherbot:latest` (o la builda in locale), monta `data/` come volume persistente e legge `.env`.
+Uses the g`ghcr.io/lorenzom23/pricewatcherbot:latest` image (or builds it locally), mounts `data/` as a persistent volume, and reads config from `.env`.
 
-## Test
+## CI/CD
+
+On pull requests targeting `main`, GitHub Actions runs the tests.
+
+On every push to `main`, it also builds an image and pushes it to GHCR. The bot runs on a Raspberry Pi, where Watchtower pulls updates automatically.
+
+## Tests
 
 ```bash
 uv run pytest
