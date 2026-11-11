@@ -5,8 +5,10 @@ from urllib import parse
 from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 from core.models import House
+from logger import logger
 from scrapers.base import Scraper
 from config import PROXY_PORT, PROXY_RESPONSE_TIMEOUT, PROXY_URL, PROXY_TIMEOUT
+
 
 LISTING_PATH = re.compile(r"^/annunci/(\d+)/?$")
 
@@ -25,7 +27,7 @@ class ImmobiliareScraper(Scraper):
         return hostname == "immobiliare.it" or hostname.endswith(".immobiliare.it")
 
     def fetch(self, url: str) -> list[House]:
-        print(f"Fetching Immobiliare.it URL: {url}")
+        logger.debug("Fetching Immobiliare.it URL: %s", url)
         if not self.can_handle(url):
             raise ValueError(f"URL non supportato: {url}")
         page_url = url
@@ -33,7 +35,7 @@ class ImmobiliareScraper(Scraper):
         last_page = False
         i = 1
         while not last_page:
-            print(f"Fetching page {i}: {page_url}")
+            logger.debug("Fetching page %d: %s", i, page_url)
             response = requests.post(
                 url=f"{PROXY_URL}:{PROXY_PORT}/v1",
                 json={"cmd": "request.get", "url": page_url, "maxTimeout": PROXY_TIMEOUT},
@@ -55,7 +57,7 @@ class ImmobiliareScraper(Scraper):
             i += 1
         if not houses:
             raise ValueError("Nessuna casa trovata")
-        print(f"Finito fetch di Immobiliare.it: {len(houses)} case trovate")
+        logger.info("Finito fetch di Immobiliare.it: %d case trovate", len(houses))
         return houses
 
     def _find_next_page_link(self, html: str) -> str | None:
@@ -77,9 +79,12 @@ class ImmobiliareScraper(Scraper):
                 title_element = item.select_one("a[class*='Title_title__']")
                 title = title_element.get_text(" ", strip=True) if title_element else None
                 if house_id is None or title is None or price is None:
-                    print(f"Annuncio incompleto: id={house_id}, title={title}, price={price}")
+                    logger.warning(
+                        "Annuncio incompleto: id=%s, title=%s, price=%s",
+                        house_id, title, price,
+                    )
                     continue
                 houses.append(House(house_id, price, title))
         else:
-            print("Lista di case non trovata")
+            logger.warning("Lista di case non trovata")
         return houses

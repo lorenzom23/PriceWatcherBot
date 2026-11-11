@@ -13,7 +13,7 @@ from storage.repository import (
     get_houses, upsert_houses
 )
 from core.models import House
-
+from logger import logger
 
 FAILURE_ALERT_THRESHOLD = 3  # con un check ogni 6h ≈ 18h di fallimenti prima di avvisare
 MAX_PARALLEL_SITES = 4  # gira su un Raspberry Pi: pochi thread bastano
@@ -53,7 +53,7 @@ def check_product(scraper: Scraper, id, url) -> list:
                     houses_to_upsert.append(new_house)
         if houses_to_upsert:
             upsert_houses(chat_id, url, houses_to_upsert)
-        print(f"Finished checking Immobiliare.it for chat {chat_id}: {len(alerts)} alerts")
+        logger.info("Finished checking Immobiliare.it for chat %s: %d alerts", chat_id, len(alerts))
     else:
         product_id = id
         last_price = get_last_price(product_id)
@@ -74,7 +74,7 @@ def check_product(scraper: Scraper, id, url) -> list:
                         "currency": result.currency,
                         "url": url
                     }))
-        print(f"Finished checking {result.name} for chat {chat_id}: {len(alerts)} alerts")
+        logger.info("Finished checking %s: %d alerts", result.name, len(alerts))
     return alerts
 
 
@@ -92,9 +92,9 @@ def _check_batch(scraper: Scraper, batch) -> list:
         time.sleep(random.uniform(2, 5))  # jitter: niente richieste a raffica
         try:
             alerts = check_product(scraper, id, product_url)
-        except Exception as e:
+        except Exception:
             kind = "Anti-bot" if isinstance(e, ScrapeBlocked) else "Errore"
-            print(f"{kind} su {product_url}: {e}")
+            logger.exception("%s su %s", kind, product_url)
             _record_failure(id, product_name, result)
             if isinstance(e, ScrapeBlocked):
                 # il sito ci ha bloccato: insistere peggiora il ban, si riprova al giro dopo.

@@ -18,6 +18,7 @@ from storage.repository import (
     change_target, remove_target, get_product_url, get_houses, add_houses,
     get_house_searches_for_chat, remove_house_search
 )
+from logger import logger
 
 
 class ConversationState(IntEnum):
@@ -141,8 +142,8 @@ async def _fetch_product(url):
         return None, err
     try:
         return await asyncio.to_thread(scraper.fetch, url), None
-    except Exception as e:
-        print(f"Error during scrape of {url}: {e}")
+    except Exception:
+        logger.exception("Error during scrape of %s", url)
         err = "track_error"
         return None, err
 
@@ -362,7 +363,7 @@ async def untrack_receive_id(update, context):
 
 
 async def check_prices_job(context):
-    print("Running periodic check of tracked products")
+    logger.info("Running periodic check of tracked products")
     # check_all() does blocking network + DB I/O; run the whole batch off the event loop.
     # It runs in a single worker thread, so every SQLite connection stays thread-local.
     for message_key, chat_id, params in await asyncio.to_thread(check_all):
@@ -377,13 +378,13 @@ async def check_prices_job(context):
             await asyncio.sleep(e.retry_after + 1)
             try:
                 await context.bot.send_message(chat_id=chat_id, text=text)
-            except TelegramError as retry_err:
-                print(f"Alert perso per chat {chat_id}: {retry_err}")
-        except TelegramError as e:
+            except TelegramError:
+                logger.exception("Alert perso per chat %s", chat_id)
+        except TelegramError:
             # il prezzo nuovo è già in history, questo alert non verrà rigenerato:
             # perderne uno è inevitabile, perdere anche i successivi del giro no
-            print(f"Alert perso per chat {chat_id}: {e}")
-    print("Finished periodic check of tracked products")
+            logger.exception("Alert perso per chat %s", chat_id)
+    logger.info("Finished periodic check of tracked products")
 
 
 def _do_show_history(chat_id, lang, history_id) -> str:

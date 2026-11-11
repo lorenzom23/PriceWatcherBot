@@ -6,6 +6,7 @@ from bot.handlers import (
     start, list_tracked, check_prices_job, conversation_handler, authorized_users
 )
 from bot.language import translate
+from logger import configure_logging, logger
 
 
 def build_commands(lang):
@@ -25,12 +26,17 @@ async def post_init(app):
 
 
 def main():
+    configure_logging(config.APPLICATION_LOG_LEVEL, config.BASIC_LOG_LEVEL)
+    logger.info("Starting PriceWatcherBot, log levels: application=%s, basic=%s",
+                config.APPLICATION_LOG_LEVEL, config.BASIC_LOG_LEVEL)
     init_db()
     app = ApplicationBuilder().token(config.BOT_TOKEN).post_init(post_init).build()
     app.add_handler(CommandHandler("start", start, filters=authorized_users))
     app.add_handler(CommandHandler("list", list_tracked, filters=authorized_users))
     app.add_handler(conversation_handler)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & authorized_users, start))
+
+    logger.info("PriceWatcherBot started")
 
     app.job_queue.run_repeating(
         check_prices_job,

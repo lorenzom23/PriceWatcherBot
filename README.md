@@ -63,18 +63,20 @@ Create a `.env` file in the project root with the following variables:
 BOT_TOKEN=your_telegram_bot_token
 ```
 
-| Name                     | Default                | Description                                                    |
-| ------------------------ | ---------------------- | -------------------------------------------------------------- |
-| `BOT_TOKEN`              | —                      | Telegram bot token (required)                                  |
-| `DB_PATH`                | `./data/prices.db`     | SQLite database path                                           |
-| `CHECK_INTERVAL_HOURS`   | `6`                    | how often to recheck prices                                    |
-| `HISTORY_RETENTION_DAYS` | `365`                  | days of price history kept                                     |
-| `MAX_TRACKED_PER_CHAT`   | `25`                   | max products trackable per chat                                |
-| `PROXY_URL`              | `http://192.168.1.234` | Byparr service URL (without the port)                          |
-| `PROXY_PORT`             | `8191`                 | Byparr service port                                            |
-| `PROXY_TIMEOUT`          | `60`                   | Byparr request timeout in seconds                              |
-| `PROXY_RESPONSE_TIMEOUT` | `120`                  | timeout in seconds for Byparr's HTTP response                  |
-| `AUTHORIZED_USER_IDS`    | empty                  | comma-separated authorized Telegram user IDs; empty = everyone |
+| Name                     | Default                | Description                                                                   |
+| ------------------------ | ---------------------- | ----------------------------------------------------------------------------- |
+| `BOT_TOKEN`              | —                      | Telegram bot token (required)                                                 |
+| `DB_PATH`                | `./data/prices.db`     | SQLite database path                                                          |
+| `APPLICATION_LOG_LEVEL`  | `INFO`                 | application logging level: `DEBUG`, `INFO`, `WARNING`, `ERROR`, or `CRITICAL` |
+| `BASIC_LOG_LEVEL`        | `WARNING`              | third-party logging level: `DEBUG`, `INFO`, `WARNING`, `ERROR`, or `CRITICAL` |
+| `CHECK_INTERVAL_HOURS`   | `6`                    | how often to recheck prices                                                   |
+| `HISTORY_RETENTION_DAYS` | `365`                  | days of price history kept                                                    |
+| `MAX_TRACKED_PER_CHAT`   | `25`                   | max products trackable per chat                                               |
+| `PROXY_URL`              | `http://192.168.1.234` | Byparr service URL (without the port)                                         |
+| `PROXY_PORT`             | `8191`                 | Byparr service port                                                           |
+| `PROXY_TIMEOUT`          | `60`                   | Byparr request timeout in seconds                                             |
+| `PROXY_RESPONSE_TIMEOUT` | `120`                  | timeout in seconds for Byparr's HTTP response                                 |
+| `AUTHORIZED_USER_IDS`    | empty                  | comma-separated authorized Telegram user IDs; empty = everyone                |
 
 ## Docker
 
@@ -83,6 +85,13 @@ docker compose up -d
 ```
 
 Uses the g`ghcr.io/lorenzom23/pricewatcherbot:latest` image (or builds it locally), mounts `data/` as a persistent volume, and reads config from `.env`.
+
+## Logging
+
+Logs are timestamped and written to standard error. `APPLICATION_LOG_LEVEL`
+sets the threshold for the bot's own messages (`INFO` by default).
+`BASIC_LOG_LEVEL` sets the threshold for third-party library messages
+(`WARNING` by default). Both accept `DEBUG`,`INFO`, `WARNING`, `ERROR`, or `CRITICAL`.
 
 ## CI/CD
 

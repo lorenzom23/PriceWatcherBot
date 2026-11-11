@@ -7,6 +7,8 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 if not BOT_TOKEN:
     raise RuntimeError("BOT_TOKEN mancante: controlla il file .env")
 
+BASIC_LOG_LEVEL = os.getenv("BASIC_LOG_LEVEL", "WARNING")
+APPLICATION_LOG_LEVEL = os.getenv("APPLICATION_LOG_LEVEL", "INFO")
 DB_PATH = os.getenv("DB_PATH", "./data/prices.db")
 CHECK_INTERVAL_HOURS = int(os.getenv("CHECK_INTERVAL_HOURS", "6"))
 HISTORY_RETENTION_DAYS = int(os.getenv("HISTORY_RETENTION_DAYS", "365"))
