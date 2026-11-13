@@ -92,7 +92,7 @@ def _check_batch(scraper: Scraper, batch) -> list:
         time.sleep(random.uniform(2, 5))  # jitter: niente richieste a raffica
         try:
             alerts = check_product(scraper, id, product_url)
-        except Exception:
+        except Exception as e:
             kind = "Anti-bot" if isinstance(e, ScrapeBlocked) else "Errore"
             logger.exception("%s su %s", kind, product_url)
             _record_failure(id, product_name, result)
